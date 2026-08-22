@@ -45,6 +45,25 @@ def setze(ordner, stapel: str) -> bool:
         return False
 
 
+ARCHIV_DATEI = "archiviert.json"
+
+
+def ist_archiviert(ordner) -> bool:
+    return (ordner / ARCHIV_DATEI).is_file()
+
+
+def archiviere(ordner) -> bool:
+    """Markiert einen Anruf als archiviert - simuliert, es wird nichts verschoben
+    oder geloescht. Macht ihn nur vom Board verschwinden (siehe server.anrufe())."""
+    try:
+        (ordner / ARCHIV_DATEI).write_text(json.dumps(
+            {"archiviert": datetime.now().isoformat(timespec="seconds"), "simuliert": True},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+
 def ordner_zu(kennung: str):
     """Wandelt eine Anruf-Kennung (JJJJ-MM-TT/HH-MM-SS_nummer) in einen Pfad.
 

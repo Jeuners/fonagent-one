@@ -124,6 +124,8 @@ def anrufe() -> list[dict]:
                     break
         except Exception:
             pass
+        if ordner and stapel.ist_archiviert(config.ABLAGE_LOKAL / ordner):
+            continue    # archiviert (simuliert) - verschwindet vom Board
         audio = None
         if ordner:
             for endung in (".wav", ".mp3", ".opus", ".m4a"):
@@ -145,6 +147,21 @@ def anrufe() -> list[dict]:
             "audio": audio,
         })
     return liste
+
+
+def archiviere_tag() -> int:
+    """Markiert alle 'Erledigt'-Anrufe als archiviert (simuliert - es wird
+    nichts exportiert oder geloescht, nur vom Board geraeumt). Gibt die Anzahl
+    zurueck."""
+    letzter = stapel.erlaubt()[-1]
+    anzahl = 0
+    for a in anrufe():
+        if a["stapel"] != letzter or not a["id"]:
+            continue
+        ordner = stapel.ordner_zu(a["id"])
+        if ordner and stapel.archiviere(ordner):
+            anzahl += 1
+    return anzahl
 
 
 FS_LOG = config.FREESWITCH_LOG
@@ -268,7 +285,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self._angemeldet():
             self._anmeldung_verlangen()
             return
-        if unquote(urlparse(self.path).path) != "/api/stapel":
+        pfad = unquote(urlparse(self.path).path)
+        if pfad == "/api/archivieren":
+            anzahl = archiviere_tag()
+            protokoll.schreibe("archiv", f"{anzahl} Anruf(e) archiviert (simuliert)", anzahl=anzahl)
+            self._json({"ok": True, "anzahl": anzahl, "simuliert": True})
+            return
+        if pfad != "/api/stapel":
             self._sende(b"nicht gefunden", "text/plain; charset=utf-8", 404)
             return
         try:
@@ -328,6 +351,14 @@ display:flex;align-items:center;gap:9px}
 .hinweis{background:#fdf1e7;border:1px solid #f0c9a0;color:#8a4b12;border-radius:8px;
 padding:7px 11px;margin:9px 0;font-size:13px}
 @media(prefers-color-scheme:dark){.hinweis{background:#2b1e12;border-color:#5a3a18;color:#f0c08a}}
+.archiv-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
+padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.archiv-btn:hover{border-color:var(--muted)}
+.archiv-btn:disabled{opacity:.5;cursor:default}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:var(--fg);
+color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;
+transition:opacity .2s,transform .2s;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.zeigen{opacity:1;transform:translate(-50%,0)}
 
 .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;align-items:start}
 @media(max-width:1100px){.board{grid-template-columns:repeat(2,1fr)}}
@@ -371,15 +402,18 @@ height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,mo
 .z .a{flex:none;width:64px;font-weight:600}
 .a-anruf{color:#3b86d8}.a-eingang{color:#1f9d5c}.a-fertig{color:#1f9d5c}
 .a-fehler{color:var(--schlecht)}.a-notfall{color:var(--schlecht);font-weight:700}
-.a-system{color:var(--muted)}.a-stapel{color:#9b6bd8}
+.a-system{color:var(--muted)}.a-stapel{color:#9b6bd8}.a-archiv{color:#9b6bd8}
 </style></head><body><div class="wrap">
-<header><h1>Anruf-Leitstand</h1><span class="stand" id="stand">…</span></header>
+<header><h1>Anruf-Leitstand</h1>
+<button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert - nichts wird geloescht oder exportiert)">🗄️ Tag archivieren</button>
+<span class="stand" id="stand">…</span></header>
 <div id="verlauf"></div>
 <div id="hinweise"></div>
 <div class="board" id="board"></div>
 <div class="dienste-kopf">Dienste</div>
 <div class="dienste" id="dienste"></div>
 </div>
+<div class="toast" id="toast"></div>
 <script>
 const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#c8a227',niedrig:'#1f9d5c'};
 const KAT={termin:'Termin',rezept:'Rezept',ueberweisung:'Überweisung',befund:'Befund',
@@ -492,6 +526,28 @@ async function takt(){
   if(a){STAPEL=a.stapel;ANRUFE=a.anrufe;zeichneBoard()}
   zeichneVerlauf(v);
 }
+let toastZeit=null;
+function toast(text){
+  const el=document.getElementById('toast');
+  el.textContent=text; el.classList.add('zeigen');
+  clearTimeout(toastZeit);
+  toastZeit=setTimeout(()=>el.classList.remove('zeigen'),3500);
+}
+
+document.getElementById('archivBtn').onclick=async()=>{
+  const btn=document.getElementById('archivBtn');
+  const letzter=STAPEL[STAPEL.length-1];
+  const anzahl=ANRUFE.filter(a=>a.stapel===letzter).length;
+  if(!anzahl){toast(`Nichts zu archivieren — ${letzter||'letzter Stapel'} ist leer.`);return}
+  if(!confirm(`${anzahl} Anruf(e) aus "${letzter}" archivieren? (simuliert — nichts wird geloescht)`))return;
+  btn.disabled=true;
+  const r=await fetch('/api/archivieren',{method:'POST'});
+  const d=await r.json().catch(()=>null);
+  btn.disabled=false;
+  if(d&&d.ok){toast(`✓ ${d.anzahl} Anruf(e) archiviert (simuliert)`);takt()}
+  else{toast('Archivieren fehlgeschlagen.')}
+};
+
 takt();setInterval(takt,3000);
 </script></body></html>"""
 
