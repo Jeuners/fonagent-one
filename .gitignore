@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+/ablage/
+/test/*.wav
+/test/*.aiff
+/dashboard.html
+# Telefonie: Aufnahmen sind Patientendaten, Ansage ist erzeugt
+/telefon/eingang/
+/telefon/verarbeitet/
+/telefon/fehler/
+/telefon/ansage.wav
+/telefon/verlauf.log
+/telefon/*.log
