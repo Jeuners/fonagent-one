@@ -13,6 +13,9 @@ ab (lokal und optional in Nextcloud).
 > Musterhausen" ist ein Platzhalter. Echte Zugangsdaten und Anrufdaten liegen
 > außerhalb des Repositorys (`.env`, `ablage/`, `telefon/`).
 
+Wer das Projekt auf einem weiteren Rechner einrichtet: [docs/MITGABE.md](docs/MITGABE.md)
+sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
+
 ## Stufen
 
 1. **Die Pipe** (fertig): Audio → Transkript → Kategorie → Ablage.
@@ -106,7 +109,7 @@ cp .env.example .env      # SIP-Zugang, Nextcloud, Leitstand-Passwort eintragen
   IP zeigt.
 - **Der Leitstand im Netz** verlangt `LEITSTAND_PASS`, sonst startet er nicht.
 
-## Nutzung## Nutzung
+## Nutzung
 
 ```bash
 cp .env.example .env        # bei Bedarf anpassen
@@ -175,6 +178,9 @@ Gesprochen wird lokal, wahlweise mit **Piper** (natürlicher, Modelle unter
 nach `NEXTCLOUD_ORDNER/JJJJ-MM-TT/…`. Fehlt die Konfiguration, bleibt alles lokal.
 
 ## Deck-Board
+
+Einschalten mit `NEXTCLOUD_DECK=1` in der `.env` — ohne diesen Schalter legt die
+Pipe kein Board an, auch wenn `DECK_STAPEL` und `DECK_TEILEN` gesetzt sind.
 
 Jeder Anruf bekommt eine Karte auf dem Board `Anrufe`. Die Stapel bilden den
 Arbeitsablauf ab — `Eingang · In Bearbeitung · Rückfragen · Erledigt`, anpassbar
