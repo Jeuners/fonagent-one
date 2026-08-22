@@ -1,1 +1,8 @@
+# Sprachsynthese der Ansage (lokal). Ohne Piper fällt ansage_bauen.sh auf das
+# macOS-eigene "say" zurück.
+piper-tts>=1.2
+# CA-Bundle: das Python von python.org bringt keinen System-Zertifikatsspeicher
+# mit, ohne certifi scheitern die HTTPS-Aufrufe zu Nextcloud.
+certifi
+# Nur nötig für STT_BACKEND=faster; der Standard ist whisper.cpp.
 faster-whisper>=1.2

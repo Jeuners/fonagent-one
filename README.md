@@ -41,13 +41,72 @@ ab (lokal und optional in Nextcloud).
 rueckruf · sonstiges`
 Dringlichkeit: `niedrig · normal · hoch · notfall`
 
-## Voraussetzungen
+## Einrichtung
 
-- **Ollama** läuft (`ollama serve`) mit einem Qwen-Modell (`qwen3.5:latest`).
-- **whisper.cpp** (`whisper-cli`) + ggml-Modell, oder `STT_BACKEND=faster` für faster-whisper.
-- **ffmpeg** (Audio-Normalisierung auf 16 kHz mono).
+Getestet auf macOS (Apple Silicon). Rechnen Sie mit ~10 GB für Modelle.
 
-## Nutzung
+**1. Programme**
+
+```bash
+brew install ffmpeg whisper-cpp freeswitch
+brew install ollama && ollama serve &      # oder Ollama.app starten
+```
+
+**2. Sprachmodell** — ordnet die Anliegen ein:
+
+```bash
+ollama pull qwen3.5:latest                 # ~6,6 GB
+```
+
+Auf Rechnern mit 16 GB Arbeitsspeicher passt kein größeres Modell daneben,
+solange die Telefonie läuft.
+
+**3. Spracherkennung** — whisper.cpp braucht ein ggml-Modell:
+
+```bash
+mkdir -p ~/whisper-models && cd ~/whisper-models
+curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
+```
+
+**4. Python-Pakete und Ansage-Stimme**
+
+```bash
+pip3 install -r requirements.txt
+# Piper lädt seine Stimmen über HTTPS - ohne CA-Bundle schlägt das fehl:
+export SSL_CERT_FILE=$(python3 -m certifi)
+python3 -m piper.download_voices --download-dir ~/piper-voices \
+        de_DE-thorsten_emotional-medium
+```
+
+**5. Konfiguration**
+
+```bash
+cp .env.example .env      # SIP-Zugang, Nextcloud, Leitstand-Passwort eintragen
+./telefon/ansage_bauen.sh
+./telefon/freeswitch/einrichten.sh
+```
+
+**6. Starten**
+
+```bash
+./telefon/starten.sh      # prüft die Voraussetzungen und startet alles
+```
+
+### Stolpersteine
+
+- **FreeSWITCH liest aus dem Cellar.** `starten.sh` übergibt deshalb `-conf`
+  auf `/opt/homebrew/etc/freeswitch`; sonst landen Trunk und Dialplan in einem
+  Verzeichnis, das jedes Homebrew-Upgrade überschreibt.
+- **Event-Socket-Port.** `fs_cli` erwartet 8021. Ist der belegt, in
+  `autoload_configs/event_socket.conf.xml` einen freien Port eintragen und
+  `FS_PORT` in `starten.sh` anpassen.
+- **Rotierende Provider-Adressen.** Löst der SIP-Hostname auf mehrere IPs auf,
+  bricht die Registrierung ständig ab: die Anmeldung landet auf einem anderen
+  Server als die Anfrage. `SIP_PROXY` auf einen Host setzen, der auf genau eine
+  IP zeigt.
+- **Der Leitstand im Netz** verlangt `LEITSTAND_PASS`, sonst startet er nicht.
+
+## Nutzung## Nutzung
 
 ```bash
 cp .env.example .env        # bei Bedarf anpassen
