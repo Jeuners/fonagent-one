@@ -58,7 +58,7 @@ def _trunk() -> tuple[str, str]:
         return "aus", "FreeSWITCH läuft nicht"
     try:
         roh = subprocess.run(
-            ["fs_cli", "-P", "8099", "-x", "sofia status gateway plusnet"],
+            ["fs_cli", "-P", config.FS_PORT, "-x", "sofia status gateway plusnet"],
             capture_output=True, text=True, timeout=8).stdout
         for zeile in roh.splitlines():
             if zeile.startswith("Status"):

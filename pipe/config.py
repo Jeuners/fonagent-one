@@ -81,6 +81,10 @@ ABLAGE_LOKAL = Path(os.environ.get("ABLAGE_LOKAL", str(WURZEL / "ablage")))
 FREESWITCH_LOG = Path(os.environ.get(
     "FREESWITCH_LOG", "/opt/homebrew/var/log/freeswitch/freeswitch.log"))
 
+# Event-Socket-Port - muss mit autoload_configs/event_socket.conf.xml
+# uebereinstimmen. Der Homebrew-Default variiert je nach Installation.
+FS_PORT = os.environ.get("FS_PORT", "8021")
+
 LEITSTAND_HOST = os.environ.get("LEITSTAND_HOST", "127.0.0.1")
 LEITSTAND_PORT = int(os.environ.get("LEITSTAND_PORT", "8088"))
 # Zugangsschutz. Pflicht, sobald der Leitstand nicht nur lokal erreichbar ist -
