@@ -77,6 +77,10 @@ PROMPT_DATEI = WURZEL / "prompts" / os.environ.get(
 ABLAGE_LOKAL = Path(os.environ.get("ABLAGE_LOKAL", str(WURZEL / "ablage")))
 
 # --- Leitstand (Weboberfläche) ----------------------------------------------
+# Log der Telefonanlage - der Leitstand liest daraus die Anruf-Ereignisse.
+FREESWITCH_LOG = Path(os.environ.get(
+    "FREESWITCH_LOG", "/opt/homebrew/var/log/freeswitch/freeswitch.log"))
+
 LEITSTAND_HOST = os.environ.get("LEITSTAND_HOST", "127.0.0.1")
 LEITSTAND_PORT = int(os.environ.get("LEITSTAND_PORT", "8088"))
 # Zugangsschutz. Pflicht, sobald der Leitstand nicht nur lokal erreichbar ist -

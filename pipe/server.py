@@ -147,7 +147,7 @@ def anrufe() -> list[dict]:
     return liste
 
 
-FS_LOG = Path("/opt/homebrew/var/log/freeswitch/freeswitch.log")
+FS_LOG = config.FREESWITCH_LOG
 _ZEIT = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
 
 # Was im FreeSWITCH-Log für die Praxis interessant ist - und wie es heißen soll.

@@ -4,7 +4,14 @@ Nimmt Anrufe (Sprachnachrichten) einer Hausarztpraxis entgegen, **transkribiert*
 sie lokal, **kategorisiert** das Anliegen und **legt** das Ergebnis strukturiert
 ab (lokal und optional in Nextcloud).
 
-**Vollständig on-prem** — keine Patientendaten verlassen den Mac.
+**Vollständig on-prem** — keine Patientendaten verlassen den Rechner.
+
+![Der Leitstand: Board mit Eingang, In Bearbeitung, Rückfragen und Erledigt, darüber der Verlauf, darunter die Dienste-Ampeln](docs/leitstand.png)
+
+> **Hinweis:** Alle Namen, Rufnummern und Anliegen in diesem Repository sind
+> erfunden — auch im Screenshot und in der Beispielkonfiguration. „Praxis
+> Musterhausen" ist ein Platzhalter. Echte Zugangsdaten und Anrufdaten liegen
+> außerhalb des Repositorys (`.env`, `ablage/`, `telefon/`).
 
 ## Stufen
 
