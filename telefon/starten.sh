@@ -5,6 +5,19 @@ set -uo pipefail
 PROJEKT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJEKT"
 
+# Werte aus der .env uebernehmen (FS_PORT, FS_ETC, OLLAMA_URL, LEITSTAND_PORT).
+# Wie in pipe/config.py gewinnt eine bereits gesetzte Umgebungsvariable - so
+# bleibt ein einmaliges "FS_PORT=8021 ./telefon/starten.sh" moeglich.
+if [ -f .env ]; then
+  while IFS= read -r zeile; do
+    case "$zeile" in ''|'#'*) continue ;; *=*) : ;; *) continue ;; esac
+    schluessel="${zeile%%=*}"
+    wert="${zeile#*=}"
+    wert="${wert%\"}"; wert="${wert#\"}"
+    [ -n "${!schluessel:-}" ] || export "$schluessel=$wert"
+  done < .env
+fi
+
 fehler=0
 melde() { printf '  %-38s %s\n' "$1" "$2"; }
 
