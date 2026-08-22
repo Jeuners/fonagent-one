@@ -6,6 +6,26 @@ set -euo pipefail
 PROJEKT="$(cd "$(dirname "$0")/../.." && pwd)"
 FS_ETC="${FS_ETC:-/opt/homebrew/etc/freeswitch}"
 
+# FreeSWITCHs record-App zerlegt ihre Argumente an Leerzeichen:
+#   record <pfad> <zeitlimit> <stille-schwelle> <stille-treffer>
+# Ein Leerzeichen im Projektpfad macht daraus einen abgeschnittenen Pfad; die
+# Aufnahme landet neben dem Projekt, der Eingang bleibt leer und der Watcher
+# bekommt nie etwas zu sehen. Die Ansage laeuft trotzdem - playback nimmt sein
+# Argument am Stueck. Der Fehler sieht deshalb aus wie ein Watcher-Problem.
+case "$PROJEKT" in
+  *\ *)
+    ersatz="$HOME/$(basename "$PROJEKT" | tr ' ' '-')"
+    {
+      echo "Der Projektpfad enthaelt ein Leerzeichen:"
+      echo "    $PROJEKT"
+      echo "FreeSWITCH kann darin nicht aufnehmen. Abhilfe - einen Pfad ohne"
+      echo "Leerzeichen anlegen und dieses Skript darueber aufrufen:"
+      echo "    ln -s \"$PROJEKT\" \"$ersatz\""
+      echo "    $ersatz/telefon/freeswitch/einrichten.sh"
+    } >&2
+    exit 1 ;;
+esac
+
 [ -d "$FS_ETC" ] || { echo "FreeSWITCH-Konfiguration nicht gefunden: $FS_ETC" >&2; exit 1; }
 [ -f "$PROJEKT/.env" ] || { echo ".env fehlt in $PROJEKT" >&2; exit 1; }
 

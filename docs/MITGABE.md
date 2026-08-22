@@ -95,7 +95,14 @@ muss zusammenpassen, sonst antwortet `fs_cli` nicht.
 6. **Rotierende Provider-Adressen.** Löst der SIP-Hostname auf mehrere IPs auf,
    bricht die Registrierung dauernd ab. `SIP_PROXY` auf einen Host setzen, der
    auf genau eine IP zeigt.
-7. **FreeSWITCH liest aus dem Cellar**, wenn `-conf` fehlt — dann überschreibt
+7. **Leerzeichen im Projektpfad brechen die Aufnahme.** FreeSWITCHs `record`
+   zerlegt seine Argumente an Leerzeichen (`record <pfad> <zeitlimit>
+   <stille-schwelle> <stille-treffer>`). Liegt das Projekt z. B. unter
+   `~/Desktop/Server AI/…`, landet die Aufnahme als `…/Server.PCMA` neben dem
+   Projekt, der Eingang bleibt leer und es sieht aus wie ein Watcher-Fehler —
+   die Ansage läuft ja. `einrichten.sh` bricht deshalb bei Leerzeichen ab und
+   nennt den Symlink-Ausweg. Getroffen auf der zweiten Maschine, 23.08.2026.
+8. **FreeSWITCH liest aus dem Cellar**, wenn `-conf` fehlt — dann überschreibt
    jedes Homebrew-Upgrade Trunk und Dialplan.
 
 ## 6. Was bewusst noch fehlt (vor Produktivbetrieb klären)
