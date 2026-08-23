@@ -153,6 +153,13 @@ Rechnern der Praxis erreichbar sein, `LEITSTAND_HOST=0.0.0.0` setzen — dann is
 und Aufnahmen von Patienten, das darf nicht offen im Netz stehen. Der Schutz
 gilt auch für die Schnittstellen und die Audiodateien.
 
+> **Wichtig zu `0.0.0.0`:** das bindet auf *alle* Netzwerk-Interfaces des
+> Rechners — nicht nur auf ein VPN/Tailscale. Läuft der Rechner zusätzlich in
+> einem normalen WLAN/LAN, ist der Leitstand (passwortgeschützt) auch dort
+> erreichbar, nicht nur im VPN. Wer das nicht will, bindet gezielt auf die
+> VPN-IP statt auf `0.0.0.0` (z. B. `LEITSTAND_HOST=100.x.x.x` bei Tailscale)
+> oder blockt den Port per Firewall-Regel für alle anderen Interfaces.
+
 Die Seite aktualisiert sich alle drei Sekunden; während man eine Karte zieht,
 pausiert das. Der Bearbeitungsstand liegt als `stapel.json` im jeweiligen
 Anrufordner, also lokal — die Übertragung nach Nextcloud-Deck kommt später.
