@@ -2,17 +2,21 @@
 # Erzeugt die Telefonansage aus telefon/ansage.txt.
 # Ergebnis: telefon/ansage.wav in Telefonqualitaet (8 kHz mono, PCM16).
 #
-# Zwei Sprachsynthesen, beide lokal:
-#   piper  (Standard, natuerlicher) - Modelle unter ~/piper-voices
-#   say    (macOS-Bordmittel, Rueckfall wenn Piper fehlt)
+# Drei Sprachsynthesen:
+#   piper    (Standard, natuerlicher, lokal) - Modelle unter ~/piper-voices
+#   say      (macOS-Bordmittel, lokal, Rueckfall wenn Piper fehlt)
+#   mistral  (Voxtral-API, Cloud - nur fuer diesen einmaligen Erzeugungslauf;
+#             die fertige ansage.wav wird danach lokal fuer jeden Anruf
+#             wiederverwendet, es geht dabei keine Patientendaten raus)
 #
 # Steuerung ueber Umgebungsvariablen bzw. .env:
-#   ANSAGE_TTS=piper|say
-#   ANSAGE_STIMME=<Piper-Modellname oder say-Stimme>
+#   ANSAGE_TTS=piper|say|mistral
+#   ANSAGE_STIMME=<Piper-Modellname, say-Stimme, oder Voxtral-Stimmen-Slug>
 #   ANSAGE_EMOTION=<Sprecher-ID, nur bei thorsten_emotional: 0=amused,
 #                   1=angry, 2=disgusted, 3=drunk, 4=neutral, 5=sleepy,
 #                   6=surprised, 7=whisper>
 #   ANSAGE_TEMPO=<1.0 = normal, groesser = langsamer>
+#   MISTRAL_KEY=<nur fuer ANSAGE_TTS=mistral>, MISTRAL_TTS_MODEL (optional)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # .env laden, aber bereits gesetzte Umgebungsvariablen behalten Vorrang -
@@ -60,6 +64,34 @@ case "$TTS" in
     say -v "$SAY_STIMME" -r 180 -f telefon/ansage.txt -o "$TMP/sprache.aiff"
     ffmpeg -v error -y -i "$TMP/sprache.aiff" -ar 8000 -ac 1 "$TMP/sprache.wav"
     BESCHREIBUNG="say/$SAY_STIMME"
+    ;;
+  mistral)
+    MISTRAL_STIMME="${ANSAGE_STIMME:-en_paul_neutral}"
+    MISTRAL_MODELL="${MISTRAL_TTS_MODEL:-voxtral-mini-tts-latest}"
+    [ -n "${MISTRAL_KEY:-}" ] || { echo "MISTRAL_KEY fehlt (ANSAGE_TTS=mistral)" >&2; exit 1; }
+    TEXT="$(tr '\n' ' ' < telefon/ansage.txt)"
+    PAYLOAD="$(TTS_MODEL="$MISTRAL_MODELL" TTS_VOICE="$MISTRAL_STIMME" python3 -c '
+import json, os, sys
+print(json.dumps({
+    "model": os.environ["TTS_MODEL"],
+    "input": sys.argv[1],
+    "voice": os.environ["TTS_VOICE"],
+    "response_format": "mp3",
+}))
+' "$TEXT")"
+    RESP="$(curl -sf -X POST "https://api.mistral.ai/v1/audio/speech" \
+      -H "Authorization: Bearer $MISTRAL_KEY" -H "Content-Type: application/json" \
+      -d "$PAYLOAD")" || { echo "Voxtral-API-Aufruf fehlgeschlagen" >&2; exit 1; }
+    python3 - "$TMP/sprache.mp3" "$RESP" <<'PYEOF'
+import json, base64, sys
+ziel, roh = sys.argv[1], sys.argv[2]
+b64 = json.loads(roh).get("audio_data")
+if not b64:
+    print("Keine Audiodaten in der Voxtral-Antwort", file=sys.stderr); sys.exit(1)
+open(ziel, "wb").write(base64.b64decode(b64))
+PYEOF
+    ffmpeg -v error -y -i "$TMP/sprache.mp3" -ar 8000 -ac 1 "$TMP/sprache.wav"
+    BESCHREIBUNG="mistral-voxtral/$MISTRAL_STIMME"
     ;;
   *) echo "Unbekanntes TTS-Backend: $TTS" >&2; exit 1 ;;
 esac
