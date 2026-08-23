@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -53,8 +54,25 @@ def _nummer_und_zeit(datei: Path) -> tuple[str | None, datetime | None]:
     return nummer, zeit
 
 
+def _noch_offen(datei: Path) -> bool:
+    """Wahr, wenn ein Prozess (FreeSWITCH) die Datei noch zum Schreiben offen
+    haelt. Reine Groessenstabilitaet reicht nicht: eine Sprechpause laesst die
+    Datei fuer RUHE_S Sekunden still stehen, obwohl der Anruf noch laeuft - der
+    Watcher hat dann eine Aufnahme mitten im Schreiben gegriffen, ffmpeg/
+    whisper-cli lasen einen unfertigen RIFF-Header und scheiterten wortlos
+    (kein Absturz, nur keine Ausgabedatei - sah wie ein Transkriptions-Bug
+    aus, war aber ein Race gegen die laufende Aufnahme)."""
+    try:
+        r = subprocess.run(["lsof", "-t", str(datei)],
+                           capture_output=True, text=True, timeout=5)
+        return bool(r.stdout.strip())
+    except Exception:
+        return False   # lsof fehlt/schlaegt fehl: nicht blockieren
+
+
 def _fertig(datei: Path) -> bool:
-    """Wahr, wenn die Datei nicht mehr wächst - die Aufnahme also steht."""
+    """Wahr, wenn die Datei nicht mehr waechst UND kein Prozess sie noch offen
+    haelt - die Aufnahme also wirklich abgeschlossen ist."""
     try:
         groesse = datei.stat().st_size
     except FileNotFoundError:
@@ -63,9 +81,11 @@ def _fertig(datei: Path) -> bool:
         return False
     time.sleep(RUHE_S)
     try:
-        return datei.stat().st_size == groesse
+        if datei.stat().st_size != groesse:
+            return False
     except FileNotFoundError:
         return False
+    return not _noch_offen(datei)
 
 
 def _neue_dateien(eingang: Path):

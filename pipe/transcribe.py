@@ -11,6 +11,7 @@ Beliebige Eingabeformate/Abtastraten werden vor der Erkennung per ffmpeg auf
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -37,7 +38,9 @@ def _letzte_zeile(ausgabe: str | None) -> str:
 
 def _nach_16k_mono(audio: Path) -> Path:
     """Normalisiert beliebiges Audio auf 16 kHz mono WAV (Tempdatei)."""
-    ziel = Path(tempfile.mkstemp(suffix=".wav", prefix="stt_")[1])
+    fd, pfad = tempfile.mkstemp(suffix=".wav", prefix="stt_")
+    os.close(fd)
+    ziel = Path(pfad)
     try:
         subprocess.run(
             ["ffmpeg", "-y", "-i", str(audio), "-ar", "16000", "-ac", "1", str(ziel)],
@@ -69,7 +72,9 @@ def transkribiere(audio: str | Path) -> Transkript:
 
 def _mit_whispercpp(audio: Path) -> Transkript:
     wav = _nach_16k_mono(audio)
-    ausgabe_basis = Path(tempfile.mkstemp(suffix="", prefix="stt_out_")[1])
+    fd, pfad = tempfile.mkstemp(suffix="", prefix="stt_out_")
+    os.close(fd)
+    ausgabe_basis = Path(pfad)
     try:
         cmd = [
             config.WHISPERCPP_BIN,
