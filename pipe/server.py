@@ -145,6 +145,7 @@ def anrufe() -> list[dict]:
             "stichworte": e.get("stichworte") or [],
             "transkript": d.get("transkript") or "",
             "audio": audio,
+            "kontakt": (d.get("bekannter_kontakt") or {}).get("name"),
         })
     return liste
 
@@ -403,6 +404,9 @@ height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,mo
 .a-anruf{color:#3b86d8}.a-eingang{color:#1f9d5c}.a-fertig{color:#1f9d5c}
 .a-fehler{color:var(--schlecht)}.a-notfall{color:var(--schlecht);font-weight:700}
 .a-system{color:var(--muted)}.a-stapel{color:#9b6bd8}.a-archiv{color:#9b6bd8}
+.a-kontakt{color:var(--gut)}
+.kontakt-badge{display:inline-block;background:color-mix(in srgb,var(--gut) 16%,transparent);
+color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
 </style></head><body><div class="wrap">
 <header><h1>Anruf-Leitstand</h1>
 <button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert - nichts wird geloescht oder exportiert)">🗄️ Tag archivieren</button>
@@ -454,7 +458,7 @@ function karte(d){
   return `<article class="karte" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span>
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
-    <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}</div>
+    <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge">✓ ${esc(d.kontakt)}</span>`:''}</div>
     <p class="anliegen">${esc(d.anliegen)}</p>
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}

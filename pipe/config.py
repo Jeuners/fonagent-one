@@ -117,6 +117,18 @@ NEXTCLOUD_PASS = os.environ.get("NEXTCLOUD_PASS", "")  # App-Passwort
 # WebDAV-Pfad braucht die interne User-ID (weicht bei E-Mail-Login ab).
 NEXTCLOUD_USERID = os.environ.get("NEXTCLOUD_USERID", "") or NEXTCLOUD_USER
 NEXTCLOUD_ORDNER = os.environ.get("NEXTCLOUD_ORDNER", "Anrufe").strip("/")
+# Adressbuch (CardDAV) fuer den Kontakt-Abgleich bei eingehenden Anrufen.
+# Nextclouds Standard-Adressbuch heisst "contacts"; eigene Adressbuecher
+# tragen ihre URI (z. B. "hgod").
+NEXTCLOUD_ADRESSBUCH = os.environ.get("NEXTCLOUD_ADRESSBUCH", "contacts")
+# Getrennter Schalter fuer den Datei-Upload: Zugangsdaten allein reichen fuer
+# den Kontakt-Abgleich (kontakte.py) - wer nur das will, ohne dass Aufnahmen
+# und Transkripte zusaetzlich nach Nextcloud hochgeladen werden, setzt hier 0.
+# Default an, damit sich am bisherigen Verhalten (Zugangsdaten -> Upload) fuer
+# bestehende Installationen nichts aendert.
+NEXTCLOUD_UPLOAD = os.environ.get("NEXTCLOUD_UPLOAD", "1").strip().lower() in {
+    "1", "true", "yes", "ja", "on"
+}
 
 # Deck-Triage-Board (optional): pro Anruf eine Karte, Stapel = Kategorie.
 NEXTCLOUD_DECK = os.environ.get("NEXTCLOUD_DECK", "").strip().lower() in {

@@ -96,7 +96,7 @@ def speichere(datensatz: dict, audio: str | Path | None) -> Path:
         audio_ziel = ziel / f"aufnahme{Path(audio).suffix or '.wav'}"
         shutil.copy2(audio, audio_ziel)
 
-    if config.nextcloud_aktiv():
+    if config.nextcloud_aktiv() and config.NEXTCLOUD_UPLOAD:
         if hochladen(ziel):
             print(f"  → Nextcloud: hochgeladen ({config.NEXTCLOUD_ORDNER}/{zeit:%Y-%m-%d}/{ziel.name})")
         else:

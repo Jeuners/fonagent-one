@@ -12,7 +12,7 @@ import argparse
 import sys
 from datetime import datetime
 
-from . import categorize, protokoll, store, transcribe
+from . import categorize, kontakte, protokoll, store, transcribe
 
 
 def verarbeite(audio: str, anrufer_nummer: str | None = None,
@@ -37,6 +37,13 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
         nummer=anrufer_nummer, kategorie=auswertung["kategorie"],
         dringlichkeit=auswertung["dringlichkeit"])
 
+    bekannter_kontakt = kontakte.nachschlagen(anrufer_nummer)
+    if bekannter_kontakt:
+        print(f"  Kontakt: bekannt als »{bekannter_kontakt['name']}« "
+              f"({bekannter_kontakt['adressbuch']})")
+        protokoll.schreibe("kontakt", f"bekannter Anrufer: {bekannter_kontakt['name']}",
+                           nummer=anrufer_nummer)
+
     datensatz = {
         "empfangen": empfangen.isoformat(timespec="seconds"),
         "anrufer_nummer": anrufer_nummer,
@@ -44,6 +51,7 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
         "erkannte_sprache": t.sprache,
         "audio_dauer_s": t.dauer,
         "auswertung": auswertung,
+        "bekannter_kontakt": bekannter_kontakt,
     }
 
     print("▸ Lege ab …")

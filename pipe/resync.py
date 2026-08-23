@@ -44,6 +44,9 @@ def main() -> int:
     if not config.nextcloud_aktiv():
         print("Nextcloud ist nicht konfiguriert — nichts zu tun.", file=sys.stderr)
         return 1
+    if not config.NEXTCLOUD_UPLOAD:
+        print("NEXTCLOUD_UPLOAD=0 — Datei-Upload ist bewusst ausgeschaltet.", file=sys.stderr)
+        return 1
     hoch, schon, fehler = nachsync()
     print(f"\nNachsync fertig: {hoch} hochgeladen, {schon} bereits oben, {fehler} fehlgeschlagen.")
     return 0 if fehler == 0 else 2
