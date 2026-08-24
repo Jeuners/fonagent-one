@@ -546,13 +546,13 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <span class="stand" id="stand">…</span>
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
 </header>
+<div class="dienste-kopf">Dienste</div>
+<div class="dienste" id="dienste"></div>
 <div id="verlauf"></div>
 <div class="verbindung-banner" id="verbindungBanner">📡 <span id="verbindungText"></span></div>
 <div id="hinweise"></div>
 <div class="notfall-banner" id="notfallBanner">🚨 <span id="notfallText"></span></div>
 <div class="board" id="board"></div>
-<div class="dienste-kopf">Dienste</div>
-<div class="dienste" id="dienste"></div>
 <footer class="fuss">
   <span>Logpy:AgentOne von Dilles</span>
   <a href="https://github.com/Jeuners/fonagent-one" target="_blank" rel="noopener">
