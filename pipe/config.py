@@ -66,9 +66,21 @@ WHISPER_PROMPT = os.environ.get(
 WHISPER_MODELL = os.environ.get("WHISPER_MODELL", "medium")
 WHISPER_COMPUTE = os.environ.get("WHISPER_COMPUTE", "int8")
 
-# --- Kategorisierung (Ollama, lokal) -----------------------------------------
+# --- Kategorisierung -----------------------------------------------------
+# Welches Modell aktiv ist, waehlt der Leitstand per Dropdown (pipe.modellwahl,
+# geteilte Zustandsdatei telefon/modell.json) - kein Neustart noetig. Hier nur
+# die Bausteine dafuer: Ollama-Zugang (lokal, Default-Auswahl) und der
+# OpenRouter-Zugang fuers Testen staerkerer Cloud-Modelle. Patientendaten
+# (Transkript) verlassen bei OpenRouter den Rechner - nur zu Testzwecken,
+# nicht im Praxisbetrieb.
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODELL = os.environ.get("OLLAMA_MODELL", "qwen3:8b")
+
+OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
+# Optional: eigenes Testmodell zusaetzlich zu den zwei fest im Dropdown
+# hinterlegten (siehe pipe/modellwahl.py) - leer lassen wenn nicht gebraucht.
+OPENROUTER_MODELL = os.environ.get("OPENROUTER_MODELL", "")
+
 PROMPT_DATEI = WURZEL / "prompts" / os.environ.get(
     "PROMPT_DATEI", "categorize_de.txt"
 )

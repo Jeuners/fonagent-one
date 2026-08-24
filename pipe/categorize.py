@@ -1,17 +1,20 @@
-"""Kategorisierung: Transkript -> strukturierte Felder (Ollama/Qwen, lokal).
+"""Kategorisierung: Transkript -> strukturierte Felder.
 
-Nutzt den Chat-Endpunkt von Ollama mit erzwungenem JSON-Schema. Denk-Tokens des
-Modells landen separat im "thinking"-Feld und werden ignoriert; zurück kommt
-reines JSON.
+Zwei Backends (Auswahl siehe pipe.modellwahl):
+  - "ollama"     (Default): lokal, erzwungenes JSON-Schema, Denk-Tokens landen
+                 separat im "thinking"-Feld und werden ignoriert.
+  - "openrouter": Cloud, zum Testen ob ein staerkeres Modell besser extrahiert.
+                 Transkript verlaesst dabei den Rechner - nur zum Testen.
 """
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 from functools import lru_cache
 
-from . import config
+from . import config, modellwahl
 
 KATEGORIEN = [
     "termin", "rezept", "ueberweisung", "befund",
@@ -51,13 +54,35 @@ class KategorisierungsFehler(RuntimeError):
     pass
 
 
-def kategorisiere(transkript: str) -> dict:
-    """Ordnet ein Transkript ein. Wirft KategorisierungsFehler bei Problemen."""
+def kategorisiere(transkript: str) -> tuple[dict, dict]:
+    """Ordnet ein Transkript ein. Wirft KategorisierungsFehler bei Problemen.
+
+    Gibt (auswertung, meta) zurueck - meta fuers Live-Log im Leitstand:
+    backend, modell, dauer_s, tokens, kosten_usd (letzteres nur OpenRouter,
+    bei :free-Modellen 0.0).
+
+    Backend + Modell kommen aus pipe.modellwahl (per Leitstand-Dropdown
+    umschaltbar, kein Neustart noetig) - Fallback ist config.py, wenn dort
+    keine Auswahl getroffen wurde.
+    """
     if not transkript.strip():
         raise KategorisierungsFehler("Leeres Transkript kann nicht kategorisiert werden.")
 
+    backend, modell = modellwahl.backend_und_modell()
+    start = time.monotonic()
+    if backend == "openrouter":
+        ergebnis, meta = _mit_openrouter(transkript, modell)
+    else:
+        ergebnis, meta = _mit_ollama(transkript, modell)
+    meta["backend"] = backend
+    meta["modell"] = modell
+    meta["dauer_s"] = round(time.monotonic() - start, 2)
+    return _bereinige(ergebnis), meta
+
+
+def _mit_ollama(transkript: str, modell: str) -> tuple[dict, dict]:
     anfrage = {
-        "model": config.OLLAMA_MODELL,
+        "model": modell,
         "messages": [
             {"role": "system", "content": _prompt()},
             {"role": "user", "content": f"Transkript der Sprachnachricht:\n\n{transkript}"},
@@ -85,12 +110,65 @@ def kategorisiere(transkript: str) -> dict:
     inhalt = roh.get("message", {}).get("content", "").strip()
     if not inhalt:
         raise KategorisierungsFehler("Ollama lieferte keine Antwort.")
+    # eval_count/prompt_eval_count sind Ollamas Token-Zaehler - kein Standard-
+    # OpenAI-Feldname, aber inhaltlich dasselbe (Antwort-/Prompt-Tokens).
+    tokens = roh.get("prompt_eval_count", 0) + roh.get("eval_count", 0) or None
     try:
-        ergebnis = json.loads(inhalt)
+        return json.loads(inhalt), {"tokens": tokens, "kosten_usd": None}
     except json.JSONDecodeError as fehler:
         raise KategorisierungsFehler(f"Antwort war kein gültiges JSON: {inhalt[:200]}") from fehler
 
-    return _bereinige(ergebnis)
+
+def _mit_openrouter(transkript: str, modell: str) -> tuple[dict, dict]:
+    if not config.OPENROUTER_KEY:
+        raise KategorisierungsFehler("OPENROUTER_KEY fehlt in .env.")
+
+    # OpenAI-kompatible Chat-API. json_object statt json_schema, weil nicht
+    # jedes ueber OpenRouter geroutete Modell striktes Schema unterstuetzt -
+    # der Systemprompt beschreibt die Felder bereits explizit in Prosa.
+    # usage.include=true ist eine OpenRouter-Erweiterung: liefert zusaetzlich
+    # die tatsaechlichen Kosten (USD) in der Antwort mit, nicht nur Tokens.
+    anfrage = {
+        "model": modell,
+        "messages": [
+            {"role": "system", "content": _prompt()},
+            {"role": "user", "content": f"Transkript der Sprachnachricht:\n\n{transkript}"},
+        ],
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "usage": {"include": True},
+    }
+    daten = json.dumps(anfrage).encode("utf-8")
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=daten,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {config.OPENROUTER_KEY}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as antwort:
+            roh = json.loads(antwort.read().decode("utf-8"))
+    except urllib.error.HTTPError as fehler:
+        detail = fehler.read().decode("utf-8", errors="replace")[:200]
+        raise KategorisierungsFehler(f"OpenRouter-Fehler {fehler.code}: {detail}") from fehler
+    except urllib.error.URLError as fehler:
+        raise KategorisierungsFehler(f"OpenRouter nicht erreichbar: {fehler}") from fehler
+
+    try:
+        inhalt = roh["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError) as fehler:
+        raise KategorisierungsFehler(f"Unerwartete OpenRouter-Antwort: {roh}") from fehler
+    if not inhalt:
+        raise KategorisierungsFehler("OpenRouter lieferte keine Antwort.")
+    nutzung = roh.get("usage") or {}
+    meta = {"tokens": nutzung.get("total_tokens"), "kosten_usd": nutzung.get("cost")}
+    try:
+        return json.loads(inhalt), meta
+    except json.JSONDecodeError as fehler:
+        raise KategorisierungsFehler(f"Antwort war kein gültiges JSON: {inhalt[:200]}") from fehler
 
 
 def _bereinige(d: dict) -> dict:

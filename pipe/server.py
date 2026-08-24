@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from . import config, dashboard, protokoll, stapel, store
+from . import config, dashboard, modellwahl, protokoll, stapel, store
 
 # Statusabfragen sind teuer (Netz, Unterprozesse) - kurz zwischenspeichern,
 # damit haeufiges Nachfragen den Rechner nicht belastet.
@@ -277,6 +277,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"stapel": stapel.erlaubt(), "anrufe": anrufe()})
         elif pfad == "/api/verlauf":
             self._json(verlauf(150))
+        elif pfad == "/api/modell":
+            self._json({"aktuell": modellwahl.aktuelle_id(), "optionen": modellwahl.AUSWAHL})
         elif pfad.startswith("/audio/"):
             self._audio(pfad[len("/audio/"):])
         else:
@@ -291,6 +293,19 @@ class Handler(BaseHTTPRequestHandler):
             anzahl = archiviere_tag()
             protokoll.schreibe("archiv", f"{anzahl} Anruf(e) archiviert (simuliert)", anzahl=anzahl)
             self._json({"ok": True, "anzahl": anzahl, "simuliert": True})
+            return
+        if pfad == "/api/modell":
+            try:
+                laenge = int(self.headers.get("Content-Length") or 0)
+                kennung = json.loads(self.rfile.read(min(laenge, 10_000)).decode("utf-8"))["id"]
+            except Exception:
+                self._json({"ok": False, "fehler": "ungültige Anfrage"})
+                return
+            if not modellwahl.setze(kennung):
+                self._json({"ok": False, "fehler": f"unbekanntes Modell: {kennung}"})
+                return
+            protokoll.schreibe("system", f"Kategorisierungs-Modell → {kennung}")
+            self._json({"ok": True})
             return
         if pfad != "/api/stapel":
             self._sende(b"nicht gefunden", "text/plain; charset=utf-8", 404)
@@ -386,6 +401,8 @@ font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 h1{font-size:19px;margin:0}
 .stand{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;margin-left:auto}
+.modell-select{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
+padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer;max-width:280px}
 .dienste{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
 .dienst{background:var(--karte);border:1px solid var(--rand);border-radius:9px;padding:9px 11px;
 display:flex;align-items:center;gap:9px}
@@ -471,7 +488,9 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <header><h1>Anruf-Leitstand</h1>
 <button class="sicher-btn" id="sicherBtn" title="Namen, Nummern, Anliegen und Transkripte unscharf - fuer Bildschirmaufnahmen/Screenshots">🙈 Sicher-Modus</button>
 <button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert - nichts wird geloescht oder exportiert)">🗄️ Tag archivieren</button>
-<span class="stand" id="stand">…</span></header>
+<span class="stand" id="stand">…</span>
+<select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
+</header>
 <div id="verlauf"></div>
 <div id="hinweise"></div>
 <div class="notfall-banner" id="notfallBanner">🚨 <span id="notfallText"></span></div>
@@ -664,6 +683,24 @@ function sicherSetzen(an){
 }
 try{sicherSetzen(localStorage.getItem('sicherModus')==='1')}catch(e){}
 sicherBtn.onclick=()=>sicherSetzen(!document.body.classList.contains('sicher'));
+
+// Kategorisierungs-Modell (Dropdown oben rechts) - Wechsel greift sofort
+// beim naechsten Anruf, kein Neustart des Watchers noetig (siehe
+// pipe/modellwahl.py, geteilte Zustandsdatei).
+async function modellLaden(){
+  const d=await hole('/api/modell'); if(!d)return;
+  const sel=document.getElementById('modellSelect');
+  sel.innerHTML=d.optionen.map(o=>
+    `<option value="${esc(o.id)}"${o.id===d.aktuell?' selected':''}>${esc(o.label)}</option>`).join('');
+}
+document.getElementById('modellSelect').onchange=async e=>{
+  const label=e.target.selectedOptions[0].textContent;
+  const r=await fetch('/api/modell',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:e.target.value})});
+  const d=await r.json().catch(()=>null);
+  toast(d&&d.ok?`Modell gewechselt: ${label}`:'Umschalten fehlgeschlagen');
+};
+modellLaden();
 
 document.getElementById('archivBtn').onclick=async()=>{
   const btn=document.getElementById('archivBtn');

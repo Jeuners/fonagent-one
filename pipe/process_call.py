@@ -29,7 +29,7 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
 
     print("▸ Kategorisiere …")
     if t.text.strip():
-        auswertung = categorize.kategorisiere(t.text)
+        auswertung, meta = categorize.kategorisiere(t.text)
     else:
         # Kein Text erkannt: Anrufer hat nach dem Signalton nicht gesprochen
         # oder sofort aufgelegt (oder eine bekannte Whisper-Halluzination
@@ -46,13 +46,26 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
                              "aufgelegt.",
             "stichworte": [],
         }
-    print(f"  Kategorie: {auswertung['kategorie']} · Dringlichkeit: {auswertung['dringlichkeit']}")
+        meta = {"backend": "-", "modell": "-", "dauer_s": 0.0, "tokens": None, "kosten_usd": None}
+    print(f"  Kategorie: {auswertung['kategorie']} · Dringlichkeit: {auswertung['dringlichkeit']}"
+          f" ({meta['modell']}, {meta['dauer_s']}s)")
+
+    # Dauer/Tokens/Kosten mit ins Live-Log (Leitstand-Verlauf), nicht nur in
+    # den JSON-Feldern versteckt - fuer den Modell-Vergleich (Dropdown oben
+    # rechts) muss man das sofort sehen, ohne meta.json aufzuklappen.
+    zusatz = f"{meta['dauer_s']}s"
+    if meta.get("tokens"):
+        zusatz += f" · {meta['tokens']} Tok"
+    if meta.get("kosten_usd"):
+        zusatz += f" · ${meta['kosten_usd']:.4f}"
     protokoll.schreibe(
         "notfall" if auswertung["dringlichkeit"] == "notfall" else "anruf",
         f"{auswertung['kategorie']} · {auswertung['dringlichkeit']}"
-        + (f" · {auswertung['anrufer_name']}" if auswertung.get("anrufer_name") else ""),
+        + (f" · {auswertung['anrufer_name']}" if auswertung.get("anrufer_name") else "")
+        + f" ({meta['modell']}, {zusatz})",
         nummer=anrufer_nummer, kategorie=auswertung["kategorie"],
-        dringlichkeit=auswertung["dringlichkeit"])
+        dringlichkeit=auswertung["dringlichkeit"], modell=meta["modell"],
+        dauer_s=meta["dauer_s"], tokens=meta.get("tokens"), kosten_usd=meta.get("kosten_usd"))
 
     bekannter_kontakt = kontakte.nachschlagen(anrufer_nummer)
     if bekannter_kontakt:

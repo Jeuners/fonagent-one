@@ -12,3 +12,5 @@ __pycache__/
 /telefon/ansage.wav
 /telefon/verlauf.log
 /telefon/*.log
+# Laufzeit-Zustand (aktive Modell-Auswahl aus dem Leitstand-Dropdown), kein Quellcode
+/telefon/modell.json
