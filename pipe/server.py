@@ -19,11 +19,12 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bewertung, config, dashboard, export, modellwahl, protokoll, stapel, store
+from . import bewertung, config, dashboard, export, modellwahl, protokoll, stapel, store, testzugang
 
 # Statusabfragen sind teuer (Netz, Unterprozesse) - kurz zwischenspeichern,
 # damit haeufiges Nachfragen den Rechner nicht belastet.
@@ -237,9 +238,27 @@ class Handler(BaseHTTPRequestHandler):
 
         Ohne Passwort bleibt der Leitstand offen - das ist nur zulässig, wenn er
         an 127.0.0.1 hängt; darauf besteht main() beim Start.
+
+        Zusätzlich akzeptiert: ein gültiges signiertes Testzugangs-Token
+        (siehe pipe.testzugang) - per ?zugang=... in der URL (so kommt es aus
+        dilles-agent.php's "agent-one test"-Kommando) oder per zugang-Cookie
+        für Folgeanfragen (fetch()-Aufrufe der Seite tragen die URL nicht
+        mit). Ein frisches URL-Token setzt das Cookie für den Rest der Stunde.
         """
+        self._zusatz_header: list[tuple[str, str]] = []
         if not config.LEITSTAND_PASS:
             return True
+
+        token = parse_qs(urlparse(self.path).query).get("zugang", [None])[0]
+        if token and testzugang.gueltig(token):
+            rest_s = max(0, int(token.split(".", 1)[0]) - int(time.time()))
+            self._zusatz_header.append(
+                ("Set-Cookie", f"zugang={token}; Max-Age={rest_s}; Path=/; HttpOnly; Secure; SameSite=Lax"))
+            return True
+        cookie_wert = SimpleCookie(self.headers.get("Cookie", "")).get("zugang")
+        if cookie_wert and testzugang.gueltig(cookie_wert.value):
+            return True
+
         kopf = self.headers.get("Authorization", "")
         if not kopf.startswith("Basic "):
             return False
@@ -262,6 +281,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", typ)
         self.send_header("Content-Length", str(len(inhalt)))
         self.send_header("Cache-Control", "no-store")
+        for schluessel, wert in getattr(self, "_zusatz_header", []):
+            self.send_header(schluessel, wert)
         self.end_headers()
         self.wfile.write(inhalt)
 
@@ -395,6 +416,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Content-Length", str(groesse))
             self.send_header("Cache-Control", "no-store")
+            for schluessel, wert in getattr(self, "_zusatz_header", []):
+                self.send_header(schluessel, wert)
             self.end_headers()
             with ziel.open("rb") as datei:
                 self.wfile.write(datei.read())
@@ -418,6 +441,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Range", f"bytes {start}-{ende}/{groesse}")
         self.send_header("Content-Length", str(laenge))
         self.send_header("Cache-Control", "no-store")
+        for schluessel, wert in getattr(self, "_zusatz_header", []):
+            self.send_header(schluessel, wert)
         self.end_headers()
         with ziel.open("rb") as datei:
             datei.seek(start)

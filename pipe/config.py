@@ -106,6 +106,12 @@ LEITSTAND_PORT = int(os.environ.get("LEITSTAND_PORT", "8088"))
 LEITSTAND_USER = os.environ.get("LEITSTAND_USER", "praxis")
 LEITSTAND_PASS = os.environ.get("LEITSTAND_PASS", "")
 
+# Geteiltes Geheimnis mit dilles-agent.php ("agent-one test"-Kommando auf
+# dillenberg.net) fuer signierte, 1h gueltige Testzugangslinks - siehe
+# pipe.testzugang. Leer lassen deaktiviert das Feature (kein Fallback-Wert,
+# ein leeres Secret darf niemals gueltige Signaturen erzeugen).
+TESTZUGANG_SECRET = os.environ.get("TESTZUGANG_SECRET", "")
+
 
 def leitstand_oeffentlich() -> bool:
     return LEITSTAND_HOST not in {"127.0.0.1", "localhost", "::1"}
