@@ -1,6 +1,6 @@
-# Praxis-Telefon-Agent
+# Logpy:AgentOne
 
-Nimmt Anrufe (Sprachnachrichten) einer Hausarztpraxis entgegen, **transkribiert**
+Praxis-Telefon-Agent — nimmt Anrufe (Sprachnachrichten) einer Hausarztpraxis entgegen, **transkribiert**
 sie lokal, **kategorisiert** das Anliegen und **legt** das Ergebnis strukturiert
 ab (lokal und optional in Nextcloud).
 

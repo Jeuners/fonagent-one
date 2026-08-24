@@ -418,7 +418,7 @@ class Handler(BaseHTTPRequestHandler):
 
 SEITE = r"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Anruf-Leitstand — Praxis Musterhausen</title>
+<title>Logpy:AgentOne — Anruf-Leitstand</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%8E%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
 :root{--bg:#f4f6f9;--fg:#18202c;--karte:#fff;--spalte:#eceff4;--rand:#dde3ec;--muted:#68748a;
@@ -538,7 +538,7 @@ height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,mo
 .kontakt-badge{display:inline-block;background:color-mix(in srgb,var(--gut) 16%,transparent);
 color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
 </style></head><body><div class="wrap">
-<header><h1>Anruf-Leitstand</h1>
+<header><h1>Logpy:AgentOne — Anruf-Leitstand</h1>
 <button class="sicher-btn" id="sicherBtn" title="Namen, Nummern, Anliegen und Transkripte unscharf - fuer Bildschirmaufnahmen/Screenshots">🙈 Sicher-Modus</button>
 <button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert, nichts wird geloescht) - bewertete Anrufe werden dabei als Trainingsdaten exportiert">🗄️ Tag archivieren</button>
 <button class="export-btn" id="exportBtn" title="Bewertete Anrufe (👍/👎) als JSONL-Trainingsdaten exportieren, unabhaengig vom Archivieren">📤 Bewertungen exportieren</button>
@@ -553,7 +553,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <div class="dienste-kopf">Dienste</div>
 <div class="dienste" id="dienste"></div>
 <footer class="fuss">
-  <span>Praxis-Telefon-Agent von Dilles</span>
+  <span>Logpy:AgentOne von Dilles</span>
   <a href="https://github.com/Jeuners/fonagent-one" target="_blank" rel="noopener">
     <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
     0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58
