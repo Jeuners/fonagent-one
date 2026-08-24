@@ -404,6 +404,9 @@ h1{font-size:19px;margin:0}
 .stand{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;margin-left:auto}
 .modell-select{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer;max-width:280px}
+.verbindung-banner{display:none;align-items:center;gap:9px;background:var(--unklar);color:#1a1500;
+font-weight:700;font-size:14px;padding:9px 14px;border-radius:9px;margin:9px 0}
+.verbindung-banner.zeigen{display:flex}
 .dienste{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
 .dienst{background:var(--karte);border:1px solid var(--rand);border-radius:9px;padding:9px 11px;
 display:flex;align-items:center;gap:9px}
@@ -493,6 +496,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
 </header>
 <div id="verlauf"></div>
+<div class="verbindung-banner" id="verbindungBanner">📡 <span id="verbindungText"></span></div>
 <div id="hinweise"></div>
 <div class="notfall-banner" id="notfallBanner">🚨 <span id="notfallText"></span></div>
 <div class="board" id="board"></div>
@@ -663,13 +667,37 @@ function zeichneVerlauf(v){
   if(unten)el.scrollTop=el.scrollHeight;
 }
 
+// Verbindungsverlust sichtbar machen statt still zu verharren: hole()
+// schluckt Netzwerkfehler und gibt nur null zurueck - ohne dieses Tracking
+// sah man dem Board nicht an, dass es seit X Minuten nicht mehr aktualisiert
+// wurde. Erst ab 2 aufeinanderfolgenden Fehlversuchen zeigen (~6s), damit ein
+// einzelner kurzer Netz-Hakler nicht sofort Alarm ausloest.
+let verbindungsFehler=0, letzteAktualisierung=null;
+function zeichneVerbindung(){
+  const banner=document.getElementById('verbindungBanner');
+  banner.classList.toggle('zeigen',verbindungsFehler>=2);
+  if(verbindungsFehler>=2){
+    const seit=letzteAktualisierung?letzteAktualisierung.toLocaleTimeString('de-DE'):'nie';
+    document.getElementById('verbindungText').textContent=
+      `Keine Verbindung zum Server — zuletzt aktualisiert: ${seit}`;
+  }
+}
+
 async function takt(){
   if(pausiert)return;            // nicht neu zeichnen, waehrend jemand zieht
   // Auch nicht neu zeichnen, waehrend eine Aufnahme laeuft - zeichneBoard()
   // ersetzt die Karten per innerHTML und reisst damit jedes spielende
   // <audio>-Element mitten in der Wiedergabe weg (Abbruch nach <3s).
-  if(document.querySelector('#board audio:not([paused])'))return;
+  // BUGFIX: [paused] ist ein HTML-Attribut, das <audio> nie gesetzt hat - der
+  // Abspielzustand ist eine reine JS/DOM-Eigenschaft (.paused). Der Selektor
+  // "audio:not([paused])" traf deshalb auf JEDES Audio-Element zu, egal ob
+  // etwas lief - das Board hat sich praktisch nie mehr neu gezeichnet, sobald
+  // irgendeine Karte eine Aufnahme hatte (also fast immer).
+  if([...document.querySelectorAll('#board audio')].some(a=>!a.paused))return;
   const [s,a,v]=await Promise.all([hole('/api/status'),hole('/api/anrufe'),hole('/api/verlauf')]);
+  if(s===null&&a===null&&v===null){verbindungsFehler++}
+  else{verbindungsFehler=0;letzteAktualisierung=new Date()}
+  zeichneVerbindung();
   zeichneStatus(s);
   if(a){STAPEL=a.stapel;ANRUFE=a.anrufe;zeichneBoard();pruefeNotfall()}
   zeichneVerlauf(v);

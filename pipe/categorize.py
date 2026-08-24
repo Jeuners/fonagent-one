@@ -9,6 +9,7 @@ Zwei Backends (Auswahl siehe pipe.modellwahl):
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -21,6 +22,35 @@ KATEGORIEN = [
     "verwaltung", "beschwerden", "notfall", "rueckruf", "sonstiges",
 ]
 DRINGLICHKEITEN = ["niedrig", "normal", "hoch", "notfall"]
+
+# Deterministisches Sicherheitsnetz, unabhaengig vom LLM: dieselben Symptome,
+# die der Prompt selbst als Notfall-Beispiele nennt (Atemnot, Brustschmerz,
+# Bewusstlosigkeit, starke Blutung). Grund: getestet mit qwen3:8b, 3/3
+# identische Laeufe stuften "starke Brustschmerzen ... kriege kaum Luft" nur
+# als "hoch" statt "notfall" ein - obwohl das Modell selbst "Brustschmerzen"
+# und "Atemnot" als stichworte erkannte. Bei Notfall-Erkennung darf man sich
+# nicht allein auf ein LLM verlassen. Eskaliert nur nach oben, nie nach unten
+# - ein Fehlalarm kostet einen Blick, ein uebersehener Notfall kann einen
+# Patienten kosten (siehe auch die "im Zweifel hoeher"-Regel im Prompt).
+_NOTFALL_MUSTER = [re.compile(p, re.IGNORECASE) for p in (
+    r"atemnot",
+    r"(kriege|bekomme|krieg)\w*\s+(kaum|keine|schwer)\s+luft",
+    r"kann\s+(kaum|nicht)\s+(mehr\s+)?atmen",
+    r"brust\w*schmerz",
+    r"schmerzen?\s+in\s+der\s+brust",
+    r"bewusstlos",
+    r"ohnm[aä]chtig",
+    r"nicht\s+ansprechbar",
+    r"blutet\s+(stark|heftig|sehr)",
+    r"starke?\s+blutung",
+)]
+
+
+def _notfall_sicherheitsnetz(transkript: str, d: dict) -> dict:
+    if d.get("dringlichkeit") != "notfall" and any(m.search(transkript) for m in _NOTFALL_MUSTER):
+        d["kategorie"] = "notfall"
+        d["dringlichkeit"] = "notfall"
+    return d
 
 # JSON-Schema, das Ollama dem Modell als Ausgabeformat aufzwingt.
 _SCHEMA = {
@@ -77,7 +107,8 @@ def kategorisiere(transkript: str) -> tuple[dict, dict]:
     meta["backend"] = backend
     meta["modell"] = modell
     meta["dauer_s"] = round(time.monotonic() - start, 2)
-    return _bereinige(ergebnis), meta
+    ergebnis = _notfall_sicherheitsnetz(transkript, _bereinige(ergebnis))
+    return ergebnis, meta
 
 
 def _mit_ollama(transkript: str, modell: str) -> tuple[dict, dict]:
