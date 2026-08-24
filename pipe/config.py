@@ -59,7 +59,9 @@ WHISPER_PROMPT = os.environ.get(
     "WHISPER_PROMPT",
     "Anruf auf dem Anrufbeantworter einer Hausarztpraxis. Der Anrufer nennt "
     "seinen Namen, sein Anliegen und eine Rückrufnummer. Häufig geht es um "
-    "Termin, Rezept, Überweisung, Befund, Krankschreibung oder Schmerzen.",
+    "Termin, Rezept, Überweisung, Befund, Krankschreibung oder Schmerzen. "
+    "Nennt der Anrufer eine E-Mail-Adresse, wird sie mit @-Zeichen "
+    "geschrieben, zum Beispiel max.mueller@example.de.",
 ).strip()
 
 # faster-whisper (nur bei STT_BACKEND=faster)

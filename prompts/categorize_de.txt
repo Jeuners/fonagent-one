@@ -37,6 +37,7 @@ Gib ein JSON-Objekt mit genau diesen Feldern zurück:
   "anrufer_name": "<Name oder null>",
   "rueckrufnummer": "<Telefonnummer aus dem Text oder null>",
   "rueckruf_gewuenscht": <true|false>,
+  "email": "<E-Mail-Adresse aus dem Text oder null, im Format name@domain.tld>",
   "sprache": "<ISO-Code der Anrufersprache, z. B. de, en, ar>",
   "anliegen_kurz": "<1-2 Sätze, neutrale Zusammenfassung auf Deutsch>",
   "stichworte": ["<kurze Schlagworte>"]

@@ -141,6 +141,8 @@ def anrufe() -> list[dict]:
             "name": e.get("anrufer_name"),
             "nummer": d.get("anrufer_nummer") or e.get("rueckrufnummer"),
             "rueckrufnummer": e.get("rueckrufnummer"),
+            "email": e.get("email"),
+            "email_korrigiert": bool(e.get("email_vermutete_korrektur")),
             "rueckruf": bool(e.get("rueckruf_gewuenscht")),
             "anliegen": e.get("anliegen_kurz") or "",
             "stichworte": e.get("stichworte") or [],
@@ -641,11 +643,20 @@ function karte(d){
   const abweichend=d.rueckrufnummer&&waehlbar(d.rueckrufnummer)!==waehlbar(d.nummer);
   const rueckrufZeile=abweichend?`<div class="meta">☎️ Rückruf an: ${nummerLink({...d,nummer:d.rueckrufnummer})}
     <span class="tag" title="Nummer aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span></div>`:'';
+  // email_korrigiert: Whisper transkribiert gesprochenes "at" beim Diktieren
+  // manchmal als Punkt statt "@" (z.B. "gdg.dillenberg.net" statt
+  // "gdg@dillenberg.net") - categorize.py repariert das als Vorschlag, aber
+  // mehrdeutig (koennte auch eine genannte Subdomain sein), deshalb hier
+  // sichtbar als Vermutung markiert statt stillschweigend uebernommen.
+  const emailZeile=d.email?`<div class="meta">📧 <a href="mailto:${esc(d.email)}">${esc(d.email)}</a>
+    ${d.email_korrigiert?`<span class="tag" title="Whisper hat das @ vermutlich als Punkt transkribiert - automatisch repariert, bitte pruefen">⚠️ vermutete Korrektur</span>`
+      :`<span class="tag" title="E-Mail aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`}</div>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
     <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge" title="Name via Rufnummer-Abgleich gegen das Adressbuch bestaetigt">✓ ${esc(d.kontakt)}</span>`:''}</div>
     ${rueckrufZeile}
+    ${emailZeile}
     <p class="anliegen">${esc(d.anliegen)}</p>
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}

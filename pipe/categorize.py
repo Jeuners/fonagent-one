@@ -61,6 +61,7 @@ _SCHEMA = {
         "anrufer_name": {"type": ["string", "null"]},
         "rueckrufnummer": {"type": ["string", "null"]},
         "rueckruf_gewuenscht": {"type": "boolean"},
+        "email": {"type": ["string", "null"]},
         "sprache": {"type": "string"},
         "anliegen_kurz": {"type": "string"},
         "stichworte": {"type": "array", "items": {"type": "string"}},
@@ -70,9 +71,33 @@ _SCHEMA = {
     # sie im Transkript standen. Der Typ erlaubt weiterhin null, wenn nichts da ist.
     "required": [
         "kategorie", "dringlichkeit", "anrufer_name", "rueckrufnummer",
-        "rueckruf_gewuenscht", "sprache", "anliegen_kurz", "stichworte",
+        "rueckruf_gewuenscht", "email", "sprache", "anliegen_kurz", "stichworte",
     ],
 }
+
+# Deterministische Reparatur, wenn Whisper gesprochenes "at" beim Diktieren
+# einer E-Mail-Adresse als Punkt transkribiert statt als "@" (beobachtet:
+# "gdg at dillenberg punkt net" -> Transkript "gdg.dillenberg.net", komplett
+# ohne @ - kein Kategorisierungs-, sondern ein Spracherkennungs-Problem).
+# Nur ein Repair-Vorschlag, kein stiller Ersatz: das erste Segment (ohne
+# eigenen Punkt) vor einer domain.tld-Form wird zu einem @ - mehrdeutig
+# (koennte auch eine genannte Subdomain sein), deshalb im UI als "vermutete
+# Korrektur" markiert statt das Transkript selbst zu veraendern.
+_EMAIL_OHNE_AT = re.compile(
+    r"^([a-z0-9_-]+)\.([a-z0-9-]+\.[a-z]{2,})$", re.IGNORECASE)
+
+
+def _repariere_email(wert: str | None) -> tuple[str | None, bool]:
+    """Gibt (email, vermutete_korrektur) zurueck."""
+    if not wert:
+        return wert, False
+    wert = wert.strip()
+    if "@" in wert:
+        return wert, False
+    treffer = _EMAIL_OHNE_AT.match(wert)
+    if not treffer:
+        return wert, False
+    return f"{treffer.group(1)}@{treffer.group(2)}", True
 
 
 @lru_cache(maxsize=1)
@@ -228,9 +253,11 @@ def _bereinige(d: dict) -> dict:
     d.setdefault("anrufer_name", None)
     d.setdefault("rueckrufnummer", None)
     d.setdefault("rueckruf_gewuenscht", False)
+    d.setdefault("email", None)
     d.setdefault("sprache", "de")
     d.setdefault("anliegen_kurz", "")
     d.setdefault("stichworte", [])
     if not isinstance(d["stichworte"], list):
         d["stichworte"] = []
+    d["email"], d["email_vermutete_korrektur"] = _repariere_email(d.get("email"))
     return d
