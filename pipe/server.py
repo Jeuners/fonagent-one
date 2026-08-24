@@ -491,6 +491,10 @@ z-index:20;align-items:center;justify-content:center;padding:20px}
 box-shadow:0 12px 40px rgba(0,0,0,.3)}
 .modal h3{margin:0 0 4px;font-size:15px}
 .modal-kontext{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+.modal-auswahl{display:flex;gap:10px;margin-bottom:10px}
+.modal-auswahl label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted)}
+.modal-auswahl select{font:inherit;font-size:13px;padding:5px 6px;border-radius:7px;
+border:1px solid var(--rand);background:var(--bg);color:var(--fg)}
 .modal textarea{width:100%;min-height:90px;font:inherit;font-size:13px;padding:8px;
 border-radius:8px;border:1px solid var(--rand);background:var(--bg);color:var(--fg);resize:vertical}
 .modal-aktionen{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
@@ -600,6 +604,10 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
   <div class="modal">
     <h3 id="meldungTitel">Meldung</h3>
     <p class="modal-kontext" id="meldungKontext"></p>
+    <div class="modal-auswahl">
+      <label>Kategorie<select id="meldungKategorie"></select></label>
+      <label>Status<select id="meldungStatus"></select></label>
+    </div>
     <textarea id="meldungTextfeld" placeholder="Was ist hier nicht richtig?"></textarea>
     <div class="modal-aktionen">
       <button id="meldungAbbrechen">Abbrechen</button>
@@ -725,8 +733,9 @@ function zeichneBoard(){
       const id=btn.dataset.id, d=ANRUFE.find(x=>x.id===id);
       meldung.oeffnen({
         titel:'Kategorisierung melden',
-        kontext:d?`${KAT[d.kategorie]||d.kategorie} · ${d.dringlichkeit} · ${d.name||'unbekannt'}`:'',
-        aufSpeichern:text=>bewerte(id,'schlecht',{text}),
+        kontext:d?`aktuell: ${KAT[d.kategorie]||d.kategorie} · ${d.dringlichkeit} · ${d.name||'unbekannt'}`:'',
+        kategorie:d&&d.kategorie, dringlichkeit:d&&d.dringlichkeit,
+        aufSpeichern:daten=>bewerte(id,'schlecht',daten),
       });
     };
   });
@@ -867,21 +876,36 @@ function toast(text){
 //   meldung.oeffnen({titel, kontext, aufSpeichern: text => {...}})
 // aufSpeichern wird erst nach Klick auf "Speichern" mit dem eingegebenen
 // Text aufgerufen; leere Eingaben werden abgewiesen (Fokus bleibt im Feld).
+const DRINGLICHKEITEN=['niedrig','normal','hoch','notfall'];
 const meldung=(()=>{
   const overlay=document.getElementById('meldungOverlay');
   const titelEl=document.getElementById('meldungTitel');
   const kontextEl=document.getElementById('meldungKontext');
+  const auswahlEl=document.querySelector('.modal-auswahl');
+  const katSel=document.getElementById('meldungKategorie');
+  const statusSel=document.getElementById('meldungStatus');
   const textEl=document.getElementById('meldungTextfeld');
   let aufSpeichern=null;
+
+  katSel.innerHTML=Object.keys(KAT).map(k=>`<option value="${k}">${esc(KAT[k])}</option>`).join('');
+  statusSel.innerHTML=DRINGLICHKEITEN.map(x=>`<option value="${x}">${x}</option>`).join('');
 
   function schliessen(){
     overlay.classList.remove('zeigen');
     aufSpeichern=null;
   }
-  function oeffnen({titel,kontext,aufSpeichern:cb}){
+  // felder: true zeigt Kategorie/Status-Auswahl, vorbelegt mit den aktuellen
+  // Werten - man korrigiert nur, was falsch ist, statt alles neu waehlen zu
+  // muessen. aufSpeichern bekommt {text, kategorie, dringlichkeit}.
+  function oeffnen({titel,kontext,kategorie,dringlichkeit,felder=true,aufSpeichern:cb}){
     titelEl.textContent=titel||'Meldung';
     kontextEl.textContent=kontext||'';
     kontextEl.style.display=kontext?'block':'none';
+    auswahlEl.style.display=felder?'flex':'none';
+    if(felder){
+      katSel.value=kategorie||'sonstiges';
+      statusSel.value=dringlichkeit||'normal';
+    }
     textEl.value='';
     aufSpeichern=cb;
     overlay.classList.add('zeigen');
@@ -892,8 +916,13 @@ const meldung=(()=>{
     const text=textEl.value.trim();
     if(!text){textEl.focus();return}
     const cb=aufSpeichern;
+    const daten={text};
+    if(auswahlEl.style.display!=='none'){
+      daten.kategorie=katSel.value;
+      daten.dringlichkeit=statusSel.value;
+    }
     schliessen();
-    if(cb)await cb(text);
+    if(cb)await cb(daten);
   };
   overlay.onclick=e=>{if(e.target===overlay)schliessen()};
   document.addEventListener('keydown',e=>{
