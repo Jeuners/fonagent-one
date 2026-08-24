@@ -660,14 +660,14 @@ function karte(d){
   // Unterschied zum kontakt-badge (echter Rufnummer-Abgleich gegen das
   // Adressbuch). Quelle sichtbar machen, damit ein spaeterer Abgleich beider
   // (Text vs. Telefon) auf unterscheidbaren Daten aufsetzen kann.
-  const quelleTag=d.name?`<span class="tag" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`:'';
+  const quelleTag=d.name?`<span class="tag" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span>`:'';
   // Genannte Rueckrufnummer nur zeigen, wenn sie sich von der CLIP-Nummer
   // unterscheidet - sonst reine Wiederholung. Genau der Fall (Anruf von
   // fremdem Anschluss, Rueckruf auf eigener Nummer gewuenscht) ging bisher
   // im UI unter, obwohl er extrahiert wird (auswertung.rueckrufnummer).
   const abweichend=d.rueckrufnummer&&waehlbar(d.rueckrufnummer)!==waehlbar(d.nummer);
   const rueckrufZeile=abweichend?`<div class="meta">☎️ Rückruf an: ${nummerLink({...d,nummer:d.rueckrufnummer})}
-    <span class="tag" title="Nummer aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span></div>`:'';
+    <span class="tag" title="Nummer aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span></div>`:'';
   // email_korrigiert: Whisper transkribiert gesprochenes "at" beim Diktieren
   // manchmal als Punkt statt "@" (z.B. "gdg.dillenberg.net" statt
   // "gdg@dillenberg.net") - categorize.py repariert das als Vorschlag, aber
@@ -675,7 +675,7 @@ function karte(d){
   // sichtbar als Vermutung markiert statt stillschweigend uebernommen.
   const emailZeile=d.email?`<div class="meta">📧 <a class="mail" href="mailto:${esc(d.email)}">${esc(d.email)}</a>
     ${d.email_korrigiert?`<span class="tag" title="Whisper hat das @ vermutlich als Punkt transkribiert - automatisch repariert, bitte pruefen">⚠️ vermutete Korrektur</span>`
-      :`<span class="tag" title="E-Mail aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`}</div>`:'';
+      :`<span class="tag" title="E-Mail aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span>`}</div>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span>
