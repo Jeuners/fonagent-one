@@ -86,6 +86,11 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
         "audio_dauer_s": t.dauer,
         "auswertung": auswertung,
         "bekannter_kontakt": bekannter_kontakt,
+        # Backend/Modell mit ablegen (nicht nur ins fluechtige Log) - fuer den
+        # Bewertungs-Export (pipe.export) muss nachvollziehbar bleiben, welches
+        # Modell diese Kategorisierung geliefert hat.
+        "kategorisierung": {"backend": meta["backend"], "modell": meta["modell"],
+                             "dauer_s": meta["dauer_s"], "failover_von": meta.get("failover_von")},
     }
 
     print("▸ Lege ab …")

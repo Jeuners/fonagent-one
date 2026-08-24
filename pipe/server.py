@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from . import config, dashboard, modellwahl, protokoll, stapel, store
+from . import bewertung, config, dashboard, export, modellwahl, protokoll, stapel, store
 
 # Statusabfragen sind teuer (Netz, Unterprozesse) - kurz zwischenspeichern,
 # damit haeufiges Nachfragen den Rechner nicht belastet.
@@ -147,14 +147,16 @@ def anrufe() -> list[dict]:
             "transkript": d.get("transkript") or "",
             "audio": audio,
             "kontakt": (d.get("bekannter_kontakt") or {}).get("name"),
+            "bewertung": (bewertung.lies(config.ABLAGE_LOKAL / ordner) or {}).get("bewertung") if ordner else None,
         })
     return liste
 
 
 def archiviere_tag() -> int:
     """Markiert alle 'Erledigt'-Anrufe als archiviert (simuliert - es wird
-    nichts exportiert oder geloescht, nur vom Board geraeumt). Gibt die Anzahl
-    zurueck."""
+    nichts geloescht, nur vom Board geraeumt). Bewertete Anrufe werden dabei
+    zusaetzlich als Trainingsdaten exportiert, siehe pipe.export. Gibt die
+    Anzahl archivierter Anrufe zurueck."""
     letzter = stapel.erlaubt()[-1]
     anzahl = 0
     for a in anrufe():
@@ -293,7 +295,35 @@ class Handler(BaseHTTPRequestHandler):
         if pfad == "/api/archivieren":
             anzahl = archiviere_tag()
             protokoll.schreibe("archiv", f"{anzahl} Anruf(e) archiviert (simuliert)", anzahl=anzahl)
-            self._json({"ok": True, "anzahl": anzahl, "simuliert": True})
+            _, export_anzahl = export.exportiere()
+            if export_anzahl:
+                protokoll.schreibe("export", f"{export_anzahl} bewertete Anrufe exportiert")
+            self._json({"ok": True, "anzahl": anzahl, "simuliert": True, "export_anzahl": export_anzahl})
+            return
+        if pfad == "/api/export":
+            ziel, anzahl = export.exportiere()
+            protokoll.schreibe("export", f"{anzahl} bewertete Anrufe exportiert nach {ziel.name}")
+            self._json({"ok": True, "anzahl": anzahl, "datei": ziel.name})
+            return
+        if pfad == "/api/bewertung":
+            try:
+                laenge = int(self.headers.get("Content-Length") or 0)
+                wunsch = json.loads(self.rfile.read(min(laenge, 10_000)).decode("utf-8"))
+                kennung, wert = wunsch["id"], wunsch["bewertung"]
+                korrektur = wunsch.get("korrektur")
+            except Exception:
+                self._json({"ok": False, "fehler": "ungültige Anfrage"})
+                return
+            ordner = stapel.ordner_zu(kennung)
+            if ordner is None:
+                self._json({"ok": False, "fehler": "Anruf nicht gefunden"})
+                return
+            if not bewertung.setze(ordner, wert, korrektur):
+                self._json({"ok": False, "fehler": f"ungültige Bewertung: {wert}"})
+                return
+            protokoll.schreibe("bewertung", f"{ordner.name} → {wert}"
+                               + (f" (Korrektur: {korrektur})" if korrektur else ""))
+            self._json({"ok": True})
             return
         if pfad == "/api/modell":
             try:
@@ -433,6 +463,21 @@ animation:notfallBlinken 1.6s ease-in-out infinite}
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
 .archiv-btn:hover{border-color:var(--muted)}
 .archiv-btn:disabled{opacity:.5;cursor:default}
+.export-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
+padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
+.export-btn:hover{border-color:var(--muted)}
+.bewertung{display:flex;align-items:center;gap:6px;margin-top:8px}
+.bewertung button{font-size:15px;background:var(--bg);border:1px solid var(--rand);border-radius:7px;
+padding:3px 8px;cursor:pointer;line-height:1;opacity:.55}
+.bewertung button:hover{opacity:1;border-color:var(--muted)}
+.bw-gut.aktiv{opacity:1;background:color-mix(in srgb,var(--gut) 18%,var(--bg));border-color:var(--gut)}
+.bw-schlecht.aktiv{opacity:1;background:color-mix(in srgb,var(--schlecht) 18%,var(--bg));border-color:var(--schlecht)}
+.bw-korrektur{display:none;align-items:center;gap:5px}
+.bw-korrektur.zeigen{display:flex}
+.bw-korrektur select{font:inherit;font-size:12px;padding:2px 4px;border-radius:6px;
+border:1px solid var(--rand);background:var(--bg);color:var(--fg)}
+.bw-korrektur button{font-size:12px;padding:3px 8px;opacity:1;background:var(--gut);
+color:#fff;border-color:var(--gut)}
 .sicher-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:8px}
 .sicher-btn:hover{border-color:var(--muted)}
@@ -495,7 +540,8 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 </style></head><body><div class="wrap">
 <header><h1>Anruf-Leitstand</h1>
 <button class="sicher-btn" id="sicherBtn" title="Namen, Nummern, Anliegen und Transkripte unscharf - fuer Bildschirmaufnahmen/Screenshots">🙈 Sicher-Modus</button>
-<button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert - nichts wird geloescht oder exportiert)">🗄️ Tag archivieren</button>
+<button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert, nichts wird geloescht) - bewertete Anrufe werden dabei als Trainingsdaten exportiert">🗄️ Tag archivieren</button>
+<button class="export-btn" id="exportBtn" title="Bewertete Anrufe (👍/👎) als JSONL-Trainingsdaten exportieren, unabhaengig vom Archivieren">📤 Bewertungen exportieren</button>
 <span class="stand" id="stand">…</span>
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
 </header>
@@ -537,6 +583,17 @@ async function verschiebe(id,ziel){
     body:JSON.stringify({id:id,stapel:ziel})});
   const d=await r.json().catch(()=>null);
   if(!d||!d.ok){takt()}   // hat nicht geklappt: echten Stand neu holen
+}
+
+// Bewertung dient gleichzeitig als Trainingsdaten (siehe pipe.export) - 👍/👎
+// pro Anruf, bei 👎 optional die richtige Kategorie/Dringlichkeit dazu.
+async function bewerte(id,wert,korrektur){
+  const a=ANRUFE.find(x=>x.id===id); if(a)a.bewertung=wert;
+  const r=await fetch('/api/bewertung',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id,bewertung:wert,korrektur:korrektur||null})});
+  const d=await r.json().catch(()=>null);
+  toast(d&&d.ok?`Bewertung gespeichert (${wert==='gut'?'👍':'👎'})`:'Bewertung fehlgeschlagen');
+  if(a)zeichneBoard();
 }
 
 // Nur Ziffern und ein fuehrendes Plus taugen fuer tel:
@@ -581,6 +638,15 @@ function karte(d){
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}
     <details data-id="${esc(d.id)}"${offen}><summary>Transkript</summary><p class="tr">${esc(d.transkript)}</p></details>
+    <div class="bewertung" data-id="${esc(d.id)}">
+      <button class="bw-gut${d.bewertung==='gut'?' aktiv':''}" data-wert="gut" title="Kategorisierung war korrekt - dient als Trainingsdaten">👍</button>
+      <button class="bw-schlecht${d.bewertung==='schlecht'?' aktiv':''}" data-wert="schlecht" title="Kategorisierung war falsch - optional korrigieren">👎</button>
+      <span class="bw-korrektur">
+        <select class="bw-kat"></select>
+        <select class="bw-dring"></select>
+        <button class="bw-speichern">Speichern</button>
+      </span>
+    </div>
     <div class="schieber">${knoepfe}</div>
   </article>`;
 }
@@ -603,6 +669,23 @@ function zeichneBoard(){
     });
   el.querySelectorAll('details').forEach(d=>{
     d.ontoggle=()=>{d.open?offeneTranskripte.add(d.dataset.id):offeneTranskripte.delete(d.dataset.id)};
+  });
+  el.querySelectorAll('.bewertung').forEach(bw=>{
+    const id=bw.dataset.id, korrektur=bw.querySelector('.bw-korrektur');
+    const selKat=bw.querySelector('.bw-kat'), selDring=bw.querySelector('.bw-dring');
+    selKat.innerHTML='<option value="">Kategorie unverändert</option>'
+      +Object.keys(KAT).map(k=>`<option value="${k}">${esc(KAT[k])}</option>`).join('');
+    selDring.innerHTML='<option value="">Dringlichkeit unverändert</option>'
+      +['niedrig','normal','hoch','notfall'].map(x=>`<option value="${x}">${x}</option>`).join('');
+    bw.querySelector('.bw-gut').onclick=e=>{e.stopPropagation();bewerte(id,'gut')};
+    bw.querySelector('.bw-schlecht').onclick=e=>{e.stopPropagation();korrektur.classList.toggle('zeigen')};
+    bw.querySelector('.bw-speichern').onclick=e=>{
+      e.stopPropagation();
+      const k={};
+      if(selKat.value)k.kategorie=selKat.value;
+      if(selDring.value)k.dringlichkeit=selDring.value;
+      bewerte(id,'schlecht',Object.keys(k).length?k:null);
+    };
   });
   el.querySelectorAll('.karte').forEach(k=>{
     k.ondragstart=e=>{pausiert=true;k.classList.add('zieht');e.dataTransfer.setData('text/plain',k.dataset.id)};
@@ -765,8 +848,21 @@ document.getElementById('archivBtn').onclick=async()=>{
   const r=await fetch('/api/archivieren',{method:'POST'});
   const d=await r.json().catch(()=>null);
   btn.disabled=false;
-  if(d&&d.ok){toast(`✓ ${d.anzahl} Anruf(e) archiviert (simuliert)`);takt()}
-  else{toast('Archivieren fehlgeschlagen.')}
+  if(d&&d.ok){
+    let text=`✓ ${d.anzahl} Anruf(e) archiviert (simuliert)`;
+    if(d.export_anzahl)text+=` · ${d.export_anzahl} bewertete Anrufe exportiert`;
+    toast(text);takt();
+  } else{toast('Archivieren fehlgeschlagen.')}
+};
+
+document.getElementById('exportBtn').onclick=async()=>{
+  const bewertete=ANRUFE.filter(a=>a.bewertung).length;
+  if(!confirm(`${bewertete} bewertete Anrufe auf dem aktuellen Board gefunden. `
+    +'Export ist für externe Auswertung gedacht (z.B. Modell-Verbesserung) — '
+    +'Transkripte und Namen der bewerteten Anrufe verlassen damit den Rechner. Fortfahren?'))return;
+  const r=await fetch('/api/export',{method:'POST'});
+  const d=await r.json().catch(()=>null);
+  toast(d&&d.ok?`✓ ${d.anzahl} Anruf(e) exportiert → training/${d.datei}`:'Export fehlgeschlagen');
 };
 
 takt();setInterval(takt,3000);
