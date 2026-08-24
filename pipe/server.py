@@ -407,6 +407,10 @@ padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer;max-width:280
 .verbindung-banner{display:none;align-items:center;gap:9px;background:var(--unklar);color:#1a1500;
 font-weight:700;font-size:14px;padding:9px 14px;border-radius:9px;margin:9px 0}
 .verbindung-banner.zeigen{display:flex}
+.fuss{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:26px;padding-top:14px;
+border-top:1px solid var(--rand);color:var(--muted);font-size:12.5px}
+.fuss a{display:inline-flex;align-items:center;gap:5px;color:var(--muted);text-decoration:none}
+.fuss a:hover{color:var(--fg);text-decoration:underline}
 .dienste{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
 .dienst{background:var(--karte);border:1px solid var(--rand);border-radius:9px;padding:9px 11px;
 display:flex;align-items:center;gap:9px}
@@ -502,6 +506,18 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <div class="board" id="board"></div>
 <div class="dienste-kopf">Dienste</div>
 <div class="dienste" id="dienste"></div>
+<footer class="fuss">
+  <span>Praxis-Telefon-Agent von Jeuner</span>
+  <a href="https://github.com/Jeuners/fonagent-one" target="_blank" rel="noopener">
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+    0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58
+    1.32.82.77 1.3 2.01.93 2.5.71.08-.55.3-.93.55-1.14-1.9-.22-3.9-.95-3.9-4.22 0-.93.33-1.7.87-2.29-.09-.22-.38-1.09.08-2.27
+    0 0 .71-.23 2.34.87.68-.19 1.4-.29 2.12-.29.72 0 1.44.1 2.12.29 1.63-1.1 2.34-.87 2.34-.87.46 1.18.17 2.05.08 2.27.54.59.87
+    1.36.87 2.29 0 3.28-2 4-3.9 4.22.31.27.58.79.58 1.6 0 1.15-.01 2.08-.01 2.36 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    Projekt auf GitHub
+  </a>
+  <a href="https://paypal.me/jeuner" target="_blank" rel="noopener">☕ Unterstützen</a>
+</footer>
 </div>
 <div class="toast" id="toast"></div>
 <script>
