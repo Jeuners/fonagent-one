@@ -28,7 +28,24 @@ def verarbeite(audio: str, anrufer_nummer: str | None = None,
     print(f"  Text: {t.text[:160]}{'…' if len(t.text) > 160 else ''}")
 
     print("▸ Kategorisiere …")
-    auswertung = categorize.kategorisiere(t.text)
+    if t.text.strip():
+        auswertung = categorize.kategorisiere(t.text)
+    else:
+        # Kein Text erkannt: Anrufer hat nach dem Signalton nicht gesprochen
+        # oder sofort aufgelegt (oder eine bekannte Whisper-Halluzination
+        # wurde rausgefiltert, siehe transcribe._ist_bekannte_halluzination).
+        # Das ist ein normaler, haeufiger Fall - kein Kategorisierungs-Fehler,
+        # der die Aufnahme nach telefon/fehler/ verschwinden lassen sollte.
+        print("  Kein Text erkannt - kein Anliegen hinterlassen.")
+        auswertung = {
+            "kategorie": "sonstiges", "dringlichkeit": "niedrig",
+            "anrufer_name": None, "rueckrufnummer": None,
+            "rueckruf_gewuenscht": False, "sprache": t.sprache or "de",
+            "anliegen_kurz": "Kein Anliegen hinterlassen - Anrufer hat nach "
+                             "dem Signalton nicht gesprochen oder sofort "
+                             "aufgelegt.",
+            "stichworte": [],
+        }
     print(f"  Kategorie: {auswertung['kategorie']} · Dringlichkeit: {auswertung['dringlichkeit']}")
     protokoll.schreibe(
         "notfall" if auswertung["dringlichkeit"] == "notfall" else "anruf",

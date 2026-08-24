@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -28,6 +29,30 @@ class Transkript:
     sprache_wahrscheinlichkeit: float
     dauer: float
     segmente: list[dict] = field(default_factory=list)
+
+
+# Bekannte Whisper-Halluzinationen: bei Stille/Rauschen (z.B. Anrufer legt
+# gleich nach dem Signalton auf) erfindet Whisper haeufig auswendig gelernte
+# Untertitel-Textbausteine aus den Trainingsdaten, statt "kein Text" zu
+# liefern - "Untertitelung des ZDF, 2020" trat bei uns mehrfach auf identisch
+# kurzen (1,7-4s) Aufnahmen auf und wurde anschliessend von der Kategorisierung
+# als echtes Anliegen fehlinterpretiert. whisper.cpp's eingebauter
+# no-speech-Schwellwert (--no-speech-thold, Default 0.6) faengt das nicht
+# zuverlaessig ab. Statt einer echten VAD (zusaetzliches Modell noetig) reicht
+# hier ein Blocklist-Abgleich gegen die dokumentiert haeufigsten Phrasen.
+_BEKANNTE_HALLUZINATIONEN = [
+    re.compile(p, re.IGNORECASE) for p in (
+        r"untertitel(ung)?\s+(des|im auftrag des|von)\s+(zdf|wdr|ndr|swr|br|mdr|hr|rbb)",
+        r"copyright\s+(wdr|zdf|ndr|swr|br)\s*\d{4}",
+        r"untertitel\s+von\s+stephanie\s+geiges",
+        r"vielen\s+dank\s+f(ü|u)rs?\s+zuschauen",
+        r"amara\.org",
+    )
+]
+
+
+def _ist_bekannte_halluzination(text: str) -> bool:
+    return any(m.search(text) for m in _BEKANNTE_HALLUZINATIONEN)
 
 
 def _letzte_zeile(ausgabe: str | None) -> str:
@@ -117,6 +142,8 @@ def _mit_whispercpp(audio: Path) -> Transkript:
     text_ganz = " ".join(s["text"] for s in segmente).strip()
     sprache = roh.get("result", {}).get("language", config.WHISPER_SPRACHE)
     dauer = segmente[-1]["ende"] if segmente else 0.0
+    if _ist_bekannte_halluzination(text_ganz):
+        text_ganz, segmente = "", []
     return Transkript(text=text_ganz, sprache=sprache,
                       sprache_wahrscheinlichkeit=1.0, dauer=dauer, segmente=segmente)
 
@@ -139,8 +166,11 @@ def _mit_faster_whisper(audio: Path) -> Transkript:
         if t:
             teile.append(t)
             seg_liste.append({"start": round(s.start, 2), "ende": round(s.end, 2), "text": t})
+    text_ganz = " ".join(teile).strip()
+    if _ist_bekannte_halluzination(text_ganz):
+        text_ganz, seg_liste = "", []
     return Transkript(
-        text=" ".join(teile).strip(), sprache=info.language,
+        text=text_ganz, sprache=info.language,
         sprache_wahrscheinlichkeit=round(info.language_probability, 3),
         dauer=round(info.duration, 2), segmente=seg_liste,
     )
