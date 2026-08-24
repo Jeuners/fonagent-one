@@ -12,6 +12,7 @@ __pycache__/
 /telefon/ansage.wav
 /telefon/verlauf.log
 /telefon/*.log
+/telefon/verlauf-archiv/
 # Laufzeit-Zustand (aktive Modell-Auswahl aus dem Leitstand-Dropdown), kein Quellcode
 /telefon/modell.json
 # Trainingsdaten-Export (pipe.export) - enthaelt volle Transkripte/Namen

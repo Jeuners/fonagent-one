@@ -298,7 +298,13 @@ class Handler(BaseHTTPRequestHandler):
             _, export_anzahl = export.exportiere()
             if export_anzahl:
                 protokoll.schreibe("export", f"{export_anzahl} bewertete Anrufe exportiert")
-            self._json({"ok": True, "anzahl": anzahl, "simuliert": True, "export_anzahl": export_anzahl})
+            # Verlauf-Log sichern + leeren, fuer eine frische Ansicht ab jetzt.
+            # audit.log (dauerhaft, unveraenderlich) ist davon nicht betroffen.
+            log_archiv = protokoll.archiviere_und_leere()
+            if log_archiv:
+                protokoll.schreibe("system", f"Verlauf archiviert nach {log_archiv.name} und geleert")
+            self._json({"ok": True, "anzahl": anzahl, "simuliert": True, "export_anzahl": export_anzahl,
+                        "log_archiviert": log_archiv.name if log_archiv else None})
             return
         if pfad == "/api/export":
             ziel, anzahl = export.exportiere()
@@ -546,7 +552,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 </style></head><body><div class="wrap">
 <header><h1>Logpy:AgentOne — Anruf-Leitstand</h1>
 <button class="sicher-btn" id="sicherBtn" title="Namen, Nummern, Anliegen und Transkripte unscharf - fuer Bildschirmaufnahmen/Screenshots">🙈 Sicher-Modus</button>
-<button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert, nichts wird geloescht) - bewertete Anrufe werden dabei als Trainingsdaten exportiert">🗄️ Tag archivieren</button>
+<button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert, nichts wird geloescht) - bewertete Anrufe werden als Trainingsdaten exportiert, das Verlauf-Log wird gesichert und geleert">🗄️ Tag archivieren</button>
 <button class="export-btn" id="exportBtn" title="Bewertete Anrufe (👍/👎) als JSONL-Trainingsdaten exportieren, unabhaengig vom Archivieren">📤 Bewertungen exportieren</button>
 <span class="stand" id="stand">…</span>
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
@@ -863,6 +869,7 @@ document.getElementById('archivBtn').onclick=async()=>{
   if(d&&d.ok){
     let text=`✓ ${d.anzahl} Anruf(e) archiviert (simuliert)`;
     if(d.export_anzahl)text+=` · ${d.export_anzahl} bewertete Anrufe exportiert`;
+    if(d.log_archiviert)text+=' · Verlauf gesichert & geleert';
     toast(text);takt();
   } else{toast('Archivieren fehlgeschlagen.')}
 };

@@ -11,12 +11,15 @@ jedes Ereignis zusaetzlich unveraenderlich nach audit.log, siehe pipe.audit.
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 from . import audit, config
 
 DATEI = config.TELEFON / "verlauf.log"
 MAX_ZEILEN = 2000          # darüber wird beim Schreiben gekürzt
+ARCHIV_ORDNER = config.TELEFON / "verlauf-archiv"
 
 
 def schreibe(art: str, text: str, **felder) -> None:
@@ -59,3 +62,20 @@ def kuerze() -> None:
             DATEI.write_text("\n".join(zeilen[-MAX_ZEILEN:]) + "\n", encoding="utf-8")
     except Exception:
         pass
+
+
+def archiviere_und_leere() -> Path | None:
+    """Sichert den aktuellen Verlauf als Kopie und leert ihn danach - fuer
+    einen frischen Verlauf nach "Tag archivieren". Das dauerhafte audit.log
+    ist davon unberuehrt (behaelt ohnehin alles). Wirft nie. Gibt den Pfad
+    der Archivkopie zurueck, oder None wenn nichts zu sichern war."""
+    try:
+        if not DATEI.is_file() or not DATEI.stat().st_size:
+            return None
+        ARCHIV_ORDNER.mkdir(parents=True, exist_ok=True)
+        ziel = ARCHIV_ORDNER / f"verlauf_{datetime.now():%Y%m%d-%H%M%S}.log"
+        shutil.copy2(DATEI, ziel)
+        DATEI.write_text("", encoding="utf-8")
+        return ziel
+    except Exception:
+        return None
