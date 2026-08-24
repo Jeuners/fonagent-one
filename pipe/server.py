@@ -828,6 +828,11 @@ async function takt(){
   // etwas lief - das Board hat sich praktisch nie mehr neu gezeichnet, sobald
   // irgendeine Karte eine Aufnahme hatte (also fast immer).
   if([...document.querySelectorAll('#board audio')].some(a=>!a.paused))return;
+  // Gleiches Problem wie beim Audio-Player: zeichneBoard() baut die Karten
+  // per innerHTML komplett neu, das reisst eine offene 👎-Korrektur-Auswahl
+  // wieder weg, bevor man sie ausfuellen kann ("erscheint, verschwindet
+  // wieder"). Nicht neu zeichnen, solange eine offen ist.
+  if(document.querySelector('.bw-korrektur.zeigen'))return;
   const [s,a,v]=await Promise.all([hole('/api/status'),hole('/api/anrufe'),hole('/api/verlauf')]);
   if(s===null&&a===null&&v===null){verbindungsFehler++}
   else{verbindungsFehler=0;letzteAktualisierung=new Date()}
