@@ -9,7 +9,9 @@ landet unveraenderlich in audit.log (ueber protokoll.schreibe).
     python3 -m pipe.loeschen              # loescht faellige Anrufe
     python3 -m pipe.loeschen --pruefen    # zeigt nur, was faellig waere
 
-Gedacht fuer taeglichen Cron/launchd-Lauf - siehe README fuer die Einrichtung.
+Laeuft automatisch alle 24h aus pipe.watch heraus (kein Cron/launchd noetig,
+solange der Watcher laeuft - siehe telefon/starten.sh). Manueller Aufruf hier
+ist nur fuer Tests/Ad-hoc-Kontrolle gedacht.
 """
 from __future__ import annotations
 

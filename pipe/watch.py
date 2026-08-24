@@ -25,11 +25,16 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import config, process_call, protokoll
+from . import config, loeschen, process_call, protokoll
 
 TAKT_S = 3          # Wartezeit zwischen zwei Durchläufen
 RUHE_S = 2          # So lange muss die Dateigröße stabil sein (Aufnahme fertig)
 ENDUNGEN = {".wav", ".mp3", ".opus", ".ogg", ".m4a", ".aiff"}
+
+# Aufbewahrungsfrist pruefen (pipe.loeschen) - kein Cron noetig, der Watcher
+# laeuft ohnehin dauerhaft. time.monotonic() statt datetime.now(): unempfindlich
+# gegen Systemzeit-Spruenge (Zeitzone/NTP), zaehlt einfach vergangene Sekunden.
+LOESCH_TAKT_S = 24 * 60 * 60
 
 # JJJJMMTT-HHMMSS_<nummer>.<ext> - beides optional, damit auch handverlesene
 # Dateien verarbeitet werden.
@@ -139,10 +144,19 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print(f"Beobachte {eingang} — Abbruch mit Strg-C")
+    if config.LOESCHFRIST_TAGE:
+        print(f"Aufbewahrungsfrist: {config.LOESCHFRIST_TAGE} Tage "
+              f"(Pruefung alle {LOESCH_TAKT_S // 3600}h, kein Cron noetig)")
     protokoll.schreibe("system", "Watcher gestartet")
+    letzter_loeschlauf = 0.0   # 0 => gleich beim ersten Durchlauf pruefen
     try:
         while True:
             durchlauf(eingang)
+            if config.LOESCHFRIST_TAGE and time.monotonic() - letzter_loeschlauf >= LOESCH_TAKT_S:
+                anzahl = loeschen.laeuft()
+                if anzahl:
+                    print(f"🗑  {anzahl} Anruf(e) nach Aufbewahrungsfrist geloescht.")
+                letzter_loeschlauf = time.monotonic()
             time.sleep(TAKT_S)
     except KeyboardInterrupt:
         print("\nBeobachtung beendet.")

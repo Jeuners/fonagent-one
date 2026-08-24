@@ -21,7 +21,8 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 1. **Die Pipe** (fertig): Audio → Transkript → Kategorie → Ablage.
 2. **Telefonie** (steht): FreeSWITCH nimmt über den Plusnet-Trunk an, spielt die
    Ansage, nimmt auf und legt die Datei im Eingang der Pipe ab.
-3. **Feinschliff** (offen): Löschfristen, Notfall-Alarm, Monitoring.
+3. **Feinschliff** (teilweise): Löschfristen ✅, Notfall-Alarm ✅ — offen:
+   Monitoring/Alerting bei Diensteausfall, Verschlüsselung at rest.
 
 ## Bausteine
 
@@ -35,6 +36,8 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 | `pipe/watch.py` | Beobachtet den Eingang und schiebt Aufnahmen durch die Pipe |
 | `pipe/server.py` | Leitstand: Live-Ansicht mit Status, Anrufen und Verlauf |
 | `pipe/protokoll.py` | Ereignisprotokoll (JSONL) für den Leitstand |
+| `pipe/audit.py` | Unveränderliches Audit-Log (append-only, siehe unten) |
+| `pipe/loeschen.py` | Löscht erledigte Anrufe nach Ablauf der Aufbewahrungsfrist |
 | `prompts/categorize_de.txt` | Kategorisierungs-Prompt (deutsch, mehrsprachig-tauglich) |
 | `telefon/` | Ansage, FreeSWITCH-Vorlagen, Start- und Einrichtungsskripte |
 
@@ -146,6 +149,15 @@ der Praxis, unabhängig von Nextcloud:
   Telefon-App des Rechners; liegt die Karte noch im Eingang, wandert sie dabei
   nach `In Bearbeitung`
 - darunter der laufende Verlauf — vom Klingeln über die Erkennung bis zur Ablage
+- **Sicher-Modus** (🙈-Knopf oben links): blurrt die Rufnummern auf allen
+  Karten, für Screenshots/Bildschirmaufnahmen. Merkt sich den Zustand pro
+  Browser (`localStorage`), übersteht also einen Reload.
+- **Notfall-Alarm:** liegt eine Karte mit Dringlichkeit `notfall` nicht im
+  letzten Stapel (`Erledigt`), pulsiert ihr Rahmen, ein rotes Banner erscheint
+  und alle 60s ertönt ein Doppel-Piepton (Web Audio API, keine Datei nötig) —
+  bis die Karte nach `Erledigt` verschoben wird. Browser blocken Autoplay-Audio
+  ohne vorherige Interaktion: ein Klick irgendwo auf die Seite schaltet den Ton
+  frei.
 
 Standardmäßig hört der Leitstand nur auf `127.0.0.1`. Soll er von anderen
 Rechnern der Praxis erreichbar sein, `LEITSTAND_HOST=0.0.0.0` setzen — dann ist
@@ -168,9 +180,10 @@ Der SIP-Zugang steht in der `.env` (`SIP_USER`, `SIP_DOMAIN`, `SIP_PASS`). Das
 Einrichtungsskript trägt das Passwort in die FreeSWITCH-Konfiguration ein und
 setzt deren Rechte auf 600 — im Git liegen nur Vorlagen mit Platzhaltern.
 
-Die Ansage nennt den Notruf 112 und weist auf die Aufzeichnung hin, bevor der
-Signalton kommt — beides ist bei einer Arztpraxis Pflicht. Text ändern:
-`telefon/ansage.txt` bearbeiten, `ansage_bauen.sh` erneut ausführen.
+Text ändern: `telefon/ansage.txt` bearbeiten, `ansage_bauen.sh` erneut
+ausführen. Für den Praxisbetrieb muss die Ansage den Notruf 112 nennen und auf
+die Aufzeichnung hinweisen, bevor der Signalton kommt — beides ist bei einer
+Arztpraxis Pflicht, siehe „Offener Punkt" unter Datenschutz weiter unten.
 
 Gesprochen wird lokal, wahlweise mit **Piper** (natürlicher, Modelle unter
 `~/piper-voices`) oder dem macOS-`say` als Rückfall. Die Stimme
@@ -199,10 +212,39 @@ leeres Deck. Deshalb `DECK_TEILEN` in der `.env` auf die Nextcloud-Nutzer setzen
 (kommagetrennt), die es sehen sollen; die Freigabe wird bei jedem Anruf
 sichergestellt.
 
+## Aufbewahrungsfrist & Audit-Log
+
+`LOESCHFRIST_TAGE` in der `.env` (0 = aus) legt fest, nach wie vielen Tagen ein
+**erledigter** Anruf (Aufnahme + Transkript, kompletter Ordner) gelöscht wird —
+lokal und, falls hochgeladen, auch bei Nextcloud. Nur Anrufe im letzten Stapel
+(`Erledigt`) werden angefasst; alles andere bleibt unangetastet, egal wie alt —
+niemand soll einen liegen gebliebenen Anruf verlieren, bevor ihn jemand
+gesehen hat.
+
+Kein Cron/launchd nötig: `pipe.watch` (läuft ohnehin dauerhaft, siehe
+`telefon/starten.sh`) prüft das alle 24h selbst mit. Manueller Aufruf für Tests:
+
+```bash
+python3 -m pipe.loeschen --pruefen    # nur anzeigen, was fällig wäre
+python3 -m pipe.loeschen              # tatsächlich löschen
+```
+
+Jede Löschung (und jedes andere Pipe-Ereignis) landet zusätzlich unveränderlich
+in `telefon/audit.log` — anders als `verlauf.log` (fürs Leitstand-UI, wird auf
+2000 Zeilen gekürzt) wird diese Datei nie überschrieben, nur angehängt, und
+zusätzlich per macOS `chflags uappnd` gegen nachträgliches Ändern/Kürzen
+abgesichert (auch der eigene Prozess kommt danach nur noch per Anhängen rein).
+
 ## Datenschutz (DSGVO)
 
 Gesundheitsdaten — Pflichten für den Produktivbetrieb (Stufe 2):
 - Aufnahme-Ansage am Gesprächsanfang.
 - Notfall-Ansage zuerst (112 / 116117); der Agent gibt **keine** medizinischen Ratschläge.
-- Verschlüsselung at rest, Zugriffskontrolle, Löschfristen.
+- Verschlüsselung at rest, Zugriffskontrolle.
+- Löschfristen — siehe oben (`LOESCHFRIST_TAGE`).
 - Verarbeitung lokal (Whisper + Qwen) — kein Cloud-Dienst im Datenpfad.
+
+> **Offener Punkt:** Die aktuelle `telefon/ansage.txt` erfüllt die ersten
+> beiden Punkte noch nicht (kein Notfall-Hinweis, keine Aufnahme-Einwilligung)
+> — Text anpassen und `ansage_bauen.sh` neu laufen lassen, bevor die Anlage im
+> echten Praxisbetrieb ans Netz geht.
