@@ -520,10 +520,15 @@ function karte(d){
   // Notfall, solange nicht im letzten Stapel (= erledigt) - pulsiert als
   // Blickfang, siehe pruefeNotfall() fuer den zugehoerigen Minuten-Ton.
   const notfallOffen=d.dringlichkeit==='notfall'&&d.stapel!==STAPEL[STAPEL.length-1];
+  // Name kommt vom LLM aus dem Transkript (Vermutung, kein Abgleich) - im
+  // Unterschied zum kontakt-badge (echter Rufnummer-Abgleich gegen das
+  // Adressbuch). Quelle sichtbar machen, damit ein spaeterer Abgleich beider
+  // (Text vs. Telefon) auf unterscheidbaren Daten aufsetzen kann.
+  const quelleTag=d.name?`<span class="tag" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
-    <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span>
+    <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
-    <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge">✓ ${esc(d.kontakt)}</span>`:''}</div>
+    <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge" title="Name via Rufnummer-Abgleich gegen das Adressbuch bestaetigt">✓ ${esc(d.kontakt)}</span>`:''}</div>
     <p class="anliegen">${esc(d.anliegen)}</p>
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}
