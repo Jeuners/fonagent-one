@@ -246,6 +246,7 @@ class Handler(BaseHTTPRequestHandler):
         mit). Ein frisches URL-Token setzt das Cookie für den Rest der Stunde.
         """
         self._zusatz_header: list[tuple[str, str]] = []
+        self._via_token = False  # True nur bei Zugang per Testzugangs-Token, nicht Passwort
         if not config.LEITSTAND_PASS:
             return True
 
@@ -254,9 +255,11 @@ class Handler(BaseHTTPRequestHandler):
             rest_s = max(0, int(token.split(".", 1)[0]) - int(time.time()))
             self._zusatz_header.append(
                 ("Set-Cookie", f"zugang={token}; Max-Age={rest_s}; Path=/; HttpOnly; Secure; SameSite=Lax"))
+            self._via_token = True
             return True
         cookie_wert = SimpleCookie(self.headers.get("Cookie", "")).get("zugang")
         if cookie_wert and testzugang.gueltig(cookie_wert.value):
+            self._via_token = True
             return True
 
         kopf = self.headers.get("Authorization", "")
@@ -298,7 +301,11 @@ class Handler(BaseHTTPRequestHandler):
         if pfad == "/":
             self._sende(SEITE.encode("utf-8"), "text/html; charset=utf-8")
         elif pfad == "/api/status":
-            self._json(status())
+            daten = status()
+            # Testzugang (per "agent-one test"-Link) -> Sicher-Modus im
+            # Frontend erzwingen, siehe sicherSetzen() im JS.
+            daten["testzugang"] = getattr(self, "_via_token", False)
+            self._json(daten)
         elif pfad == "/api/anrufe":
             self._json({"stapel": stapel.erlaubt(), "anrufe": anrufe()})
         elif pfad == "/api/verlauf":
@@ -820,6 +827,13 @@ setInterval(()=>{if(notfallOffenVorher)piepton()},60000);
 
 function zeichneStatus(s){
   if(!s)return;
+  // Testzugang (per "agent-one test"-Link, kein Passwort) -> Sicher-Modus
+  // erzwingen, nicht abschaltbar. Nur einmal reagieren, wenn der Status das
+  // erste Mal als Testzugang markiert ankommt.
+  if(s.testzugang&&!sicherErzwungen){
+    sicherErzwungen=true;
+    sicherSetzen(true);
+  }
   document.getElementById('stand').textContent='Stand '+s.stand;
   document.getElementById('dienste').innerHTML=s.dienste.map(d=>
     `<div class="dienst"><span class="punkt ${d.zustand}"></span>
@@ -958,14 +972,21 @@ const meldung=(()=>{
 
 // Sicher-Modus merkt sich den Zustand pro Browser (localStorage) - beim
 // naechsten Aufruf (z.B. vor einer Bildschirmaufnahme) nicht vergessen.
+// Bei Testzugang (per "agent-one test"-Link, s. api/status.testzugang) ist
+// er erzwungen an und laesst sich nicht abschalten - der Link braucht kein
+// Passwort, also duerfen fremde Tester keine echten Rufnummern sehen.
 const sicherBtn=document.getElementById('sicherBtn');
+let sicherErzwungen=false;
 function sicherSetzen(an){
   document.body.classList.toggle('sicher',an);
   sicherBtn.classList.toggle('aktiv',an);
   try{localStorage.setItem('sicherModus',an?'1':'0')}catch(e){}
 }
 try{sicherSetzen(localStorage.getItem('sicherModus')==='1')}catch(e){}
-sicherBtn.onclick=()=>sicherSetzen(!document.body.classList.contains('sicher'));
+sicherBtn.onclick=()=>{
+  if(sicherErzwungen){toast('Sicher-Modus ist bei Testzugang immer aktiv');return}
+  sicherSetzen(!document.body.classList.contains('sicher'));
+};
 
 // Kategorisierungs-Modell (Dropdown oben rechts) - Wechsel greift sofort
 // beim naechsten Anruf, kein Neustart des Watchers noetig (siehe
