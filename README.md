@@ -1,5 +1,7 @@
 # Logpy:AgentOne
 
+**v1.0.0** — siehe [CHANGELOG.md](CHANGELOG.md)
+
 Praxis-Telefon-Agent — nimmt Anrufe (Sprachnachrichten) einer Hausarztpraxis entgegen, **transkribiert**
 sie lokal, **kategorisiert** das Anliegen und **legt** das Ergebnis strukturiert
 ab (lokal und optional in Nextcloud).
