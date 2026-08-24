@@ -316,7 +316,16 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": True})
 
     def _audio(self, rest: str) -> None:
-        """Liefert eine Aufnahme aus der Ablage - nur von dort."""
+        """Liefert eine Aufnahme aus der Ablage - nur von dort.
+
+        Muss HTTP-Range unterstuetzen: der <audio>-Player im Leitstand schickt
+        beim Laden erst eine kleine Range-Anfrage (z.B. die ersten paar KB),
+        um Dauer/Seekbarkeit zu ermitteln. Antwortet der Server darauf mit
+        200 + der kompletten Datei statt 206 + dem angefragten Ausschnitt,
+        haelt der Browser sich an die urspruenglich angefragte (kleine)
+        Groesse und bricht die Wiedergabe nach ein paar Sekunden ab, obwohl
+        die Datei komplett uebertragen wurde.
+        """
         ziel = (config.ABLAGE_LOKAL / rest).resolve()
         wurzel = config.ABLAGE_LOKAL.resolve()
         if not str(ziel).startswith(str(wurzel) + "/") or not ziel.is_file():
@@ -324,12 +333,47 @@ class Handler(BaseHTTPRequestHandler):
             return
         typ = {".wav": "audio/wav", ".mp3": "audio/mpeg",
                ".opus": "audio/ogg", ".m4a": "audio/mp4"}.get(ziel.suffix, "application/octet-stream")
-        self._sende(ziel.read_bytes(), typ)
+        groesse = ziel.stat().st_size
+        bereich = self.headers.get("Range")
+        if not bereich:
+            self.send_response(200)
+            self.send_header("Content-Type", typ)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(groesse))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            with ziel.open("rb") as datei:
+                self.wfile.write(datei.read())
+            return
+
+        treffer = re.match(r"bytes=(\d*)-(\d*)", bereich)
+        start = int(treffer.group(1)) if treffer and treffer.group(1) else 0
+        ende = int(treffer.group(2)) if treffer and treffer.group(2) else groesse - 1
+        ende = min(ende, groesse - 1)
+        if not treffer or start > ende or start >= groesse:
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{groesse}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        laenge = ende - start + 1
+        self.send_response(206)
+        self.send_header("Content-Type", typ)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Range", f"bytes {start}-{ende}/{groesse}")
+        self.send_header("Content-Length", str(laenge))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        with ziel.open("rb") as datei:
+            datei.seek(start)
+            self.wfile.write(datei.read(laenge))
 
 
 SEITE = r"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Anruf-Leitstand — Praxis Musterhausen</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%8E%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
 :root{--bg:#f4f6f9;--fg:#18202c;--karte:#fff;--spalte:#eceff4;--rand:#dde3ec;--muted:#68748a;
 --gut:#1f9d5c;--schlecht:#d93a34;--unklar:#c8901f;--aus:#8a93a3;--log:#f8fafc}
@@ -352,10 +396,26 @@ display:flex;align-items:center;gap:9px}
 .hinweis{background:#fdf1e7;border:1px solid #f0c9a0;color:#8a4b12;border-radius:8px;
 padding:7px 11px;margin:9px 0;font-size:13px}
 @media(prefers-color-scheme:dark){.hinweis{background:#2b1e12;border-color:#5a3a18;color:#f0c08a}}
+.notfall-banner{display:none;align-items:center;gap:9px;background:var(--schlecht);color:#fff;
+font-weight:700;font-size:14px;padding:9px 14px;border-radius:9px;margin:9px 0;
+animation:notfallBlinken 1.6s ease-in-out infinite}
+.notfall-banner.zeigen{display:flex}
+@keyframes notfallBlinken{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes notfallRahmen{0%,100%{box-shadow:0 0 0 0 rgba(233,50,45,.6)}
+50%{box-shadow:0 0 0 9px rgba(233,50,45,0)}}
+.karte.notfall-offen{animation:notfallRahmen 1.6s ease-in-out infinite}
 .archiv-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
 .archiv-btn:hover{border-color:var(--muted)}
 .archiv-btn:disabled{opacity:.5;cursor:default}
+.sicher-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
+padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:8px}
+.sicher-btn:hover{border-color:var(--muted)}
+.sicher-btn.aktiv{background:var(--gut);border-color:var(--gut);color:#fff}
+/* Sicher-Modus: Patientendaten unscharf, fuer Bildschirmaufnahmen/Screenshots.
+   Struktur (Kategorie, Dringlichkeit, Zeit, Stapel) bleibt lesbar - nur was
+   auf eine Person zurueckfuehrt wird geblurrt. */
+body.sicher a.waehlen{filter:blur(6px);user-select:none}
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:var(--fg);
 color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;
 transition:opacity .2s,transform .2s;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.2)}
@@ -409,10 +469,12 @@ height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,mo
 color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
 </style></head><body><div class="wrap">
 <header><h1>Anruf-Leitstand</h1>
+<button class="sicher-btn" id="sicherBtn" title="Namen, Nummern, Anliegen und Transkripte unscharf - fuer Bildschirmaufnahmen/Screenshots">🙈 Sicher-Modus</button>
 <button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert - nichts wird geloescht oder exportiert)">🗄️ Tag archivieren</button>
 <span class="stand" id="stand">…</span></header>
 <div id="verlauf"></div>
 <div id="hinweise"></div>
+<div class="notfall-banner" id="notfallBanner">🚨 <span id="notfallText"></span></div>
 <div class="board" id="board"></div>
 <div class="dienste-kopf">Dienste</div>
 <div class="dienste" id="dienste"></div>
@@ -455,7 +517,10 @@ function karte(d){
   const knoepfe=STAPEL.map((s,j)=>j===i?'':
     `<button data-id="${esc(d.id)}" data-ziel="${esc(s)}">${j<i?'←':'→'} ${esc(s)}</button>`).join('');
   const offen=offeneTranskripte.has(d.id)?' open':'';
-  return `<article class="karte" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
+  // Notfall, solange nicht im letzten Stapel (= erledigt) - pulsiert als
+  // Blickfang, siehe pruefeNotfall() fuer den zugehoerigen Minuten-Ton.
+  const notfallOffen=d.dringlichkeit==='notfall'&&d.stapel!==STAPEL[STAPEL.length-1];
+  return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span>
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
     <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge">✓ ${esc(d.kontakt)}</span>`:''}</div>
@@ -498,6 +563,48 @@ function zeichneBoard(){
   });
 }
 
+// Notfall-Alarm: solange mindestens ein Notfall offen ist (nicht im letzten
+// Stapel), pulsiert die Karte (CSS) und alle 60s ein doppelter Piepton -
+// zusaetzlich sofort einmal, wenn ein Notfall neu auftaucht. Browser
+// blockieren Audio ohne vorherigen Klick auf die Seite (Autoplay-Policy) -
+// deshalb der einmalige 'click'-Listener unten, der den AudioContext oeffnet.
+let audioCtx=null, notfallOffenVorher=false;
+function audioFreischalten(){
+  try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+}
+document.addEventListener('click',audioFreischalten,{once:true});
+
+function piepton(){
+  if(!audioCtx)return;   // noch nicht freigeschaltet - naechster Klick holt es nach
+  const einzelton=(zeit,frequenz)=>{
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='square'; o.frequency.value=frequenz;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.0001,zeit);
+    g.gain.exponentialRampToValueAtTime(0.28,zeit+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,zeit+0.45);
+    o.start(zeit); o.stop(zeit+0.46);
+  };
+  const jetzt=audioCtx.currentTime;
+  einzelton(jetzt,880);
+  einzelton(jetzt+0.3,1100);
+}
+
+function pruefeNotfall(){
+  const letzterStapel=STAPEL[STAPEL.length-1];
+  const offen=ANRUFE.filter(a=>a.dringlichkeit==='notfall'&&a.stapel!==letzterStapel);
+  const banner=document.getElementById('notfallBanner');
+  banner.classList.toggle('zeigen',offen.length>0);
+  if(offen.length){
+    document.getElementById('notfallText').textContent=offen.length===1
+      ?'1 offene Notfall-Meldung'
+      :`${offen.length} offene Notfall-Meldungen`;
+    if(!notfallOffenVorher)piepton();   // sofort beim erstmaligen Auftreten
+  }
+  notfallOffenVorher=offen.length>0;
+}
+setInterval(()=>{if(notfallOffenVorher)piepton()},60000);
+
 function zeichneStatus(s){
   if(!s)return;
   document.getElementById('stand').textContent='Stand '+s.stand;
@@ -525,9 +632,13 @@ function zeichneVerlauf(v){
 
 async function takt(){
   if(pausiert)return;            // nicht neu zeichnen, waehrend jemand zieht
+  // Auch nicht neu zeichnen, waehrend eine Aufnahme laeuft - zeichneBoard()
+  // ersetzt die Karten per innerHTML und reisst damit jedes spielende
+  // <audio>-Element mitten in der Wiedergabe weg (Abbruch nach <3s).
+  if(document.querySelector('#board audio:not([paused])'))return;
   const [s,a,v]=await Promise.all([hole('/api/status'),hole('/api/anrufe'),hole('/api/verlauf')]);
   zeichneStatus(s);
-  if(a){STAPEL=a.stapel;ANRUFE=a.anrufe;zeichneBoard()}
+  if(a){STAPEL=a.stapel;ANRUFE=a.anrufe;zeichneBoard();pruefeNotfall()}
   zeichneVerlauf(v);
 }
 let toastZeit=null;
@@ -537,6 +648,17 @@ function toast(text){
   clearTimeout(toastZeit);
   toastZeit=setTimeout(()=>el.classList.remove('zeigen'),3500);
 }
+
+// Sicher-Modus merkt sich den Zustand pro Browser (localStorage) - beim
+// naechsten Aufruf (z.B. vor einer Bildschirmaufnahme) nicht vergessen.
+const sicherBtn=document.getElementById('sicherBtn');
+function sicherSetzen(an){
+  document.body.classList.toggle('sicher',an);
+  sicherBtn.classList.toggle('aktiv',an);
+  try{localStorage.setItem('sicherModus',an?'1':'0')}catch(e){}
+}
+try{sicherSetzen(localStorage.getItem('sicherModus')==='1')}catch(e){}
+sicherBtn.onclick=()=>sicherSetzen(!document.body.classList.contains('sicher'));
 
 document.getElementById('archivBtn').onclick=async()=>{
   const btn=document.getElementById('archivBtn');

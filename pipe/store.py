@@ -197,6 +197,31 @@ def _put(lokal: Path, pfad: str) -> None:
     _sende(req, timeout=180)
 
 
+def loeschen_bei_nextcloud(ordner: Path) -> bool:
+    """Loescht einen Anruf-Ordner aus Nextcloud (WebDAV DELETE, rekursiv).
+
+    Nur fuer pipe.loeschen gedacht - dort wird vorher geprueft, dass der
+    Ordner tatsaechlich schon oben liegt (MARKER-Datei). Wirft nie.
+    """
+    if not config.nextcloud_aktiv():
+        return False
+    try:
+        zeit = datetime.strptime(ordner.parent.name, "%Y-%m-%d")
+        pfad = f"{config.NEXTCLOUD_ORDNER}/{zeit:%Y-%m-%d}/{ordner.name}"
+        req = urllib.request.Request(
+            f"{_webdav_basis()}/{pfad}", method="DELETE", headers=_auth_header()
+        )
+        try:
+            _sende(req)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:  # 404 = ohnehin schon weg
+                raise
+        return True
+    except Exception as fehler:
+        print(f"    Loeschen (Nextcloud) {ordner.name}: {fehler}")
+        return False
+
+
 def _nach_nextcloud(ordner: Path, zeit: datetime) -> None:
     basis = config.NEXTCLOUD_ORDNER
     tag = f"{zeit:%Y-%m-%d}"

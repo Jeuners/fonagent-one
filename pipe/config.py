@@ -146,3 +146,12 @@ DECK_TEILEN = [n.strip() for n in os.environ.get("DECK_TEILEN", "").split(",") i
 
 def nextcloud_aktiv() -> bool:
     return bool(NEXTCLOUD_URL and NEXTCLOUD_USER and NEXTCLOUD_PASS)
+
+
+# --- Aufbewahrungsfrist (pipe.loeschen) --------------------------------------
+# Nach so vielen Tagen wird ein Anruf-Ordner (Aufnahme + Transkript + Meta)
+# geloescht - lokal und, falls hochgeladen, auch bei Nextcloud. 0 = aus (nichts
+# wird automatisch geloescht). Greift nur fuer Anrufe im letzten Stapel
+# (DECK_STAPEL[-1], per Default "Erledigt") - unbearbeitete Anrufe bleiben
+# unangetastet, egal wie alt.
+LOESCHFRIST_TAGE = int(os.environ.get("LOESCHFRIST_TAGE", "0") or "0")
