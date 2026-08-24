@@ -38,6 +38,8 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 | `pipe/protokoll.py` | Ereignisprotokoll (JSONL) für den Leitstand |
 | `pipe/audit.py` | Unveränderliches Audit-Log (append-only, siehe unten) |
 | `pipe/loeschen.py` | Löscht erledigte Anrufe nach Ablauf der Aufbewahrungsfrist |
+| `pipe/bewertung.py` | 👍/👎-Bewertung pro Anruf (Leitstand) |
+| `pipe/export.py` | Exportiert bewertete Anrufe als JSONL-Trainingsdaten |
 | `prompts/categorize_de.txt` | Kategorisierungs-Prompt (deutsch, mehrsprachig-tauglich) |
 | `telefon/` | Ansage, FreeSWITCH-Vorlagen, Start- und Einrichtungsskripte |
 
@@ -158,6 +160,14 @@ der Praxis, unabhängig von Nextcloud:
   bis die Karte nach `Erledigt` verschoben wird. Browser blocken Autoplay-Audio
   ohne vorherige Interaktion: ein Klick irgendwo auf die Seite schaltet den Ton
   frei.
+- **Notfall-Sicherheitsnetz** (`categorize.py`): bei der Notfall-Erkennung
+  verlässt sich das System nicht allein auf das LLM — ein deterministischer
+  Check gegen die im Prompt selbst genannten Symptome (Atemnot, Brustschmerz,
+  Bewusstlosigkeit, starke Blutung) eskaliert nötigenfalls hart im Code auf
+  `notfall`, unabhängig vom Modell. Grund: `qwen3:8b` stufte „starke
+  Brustschmerzen … kriege kaum Luft" reproduzierbar (3/3 Testläufe) nur als
+  „hoch" ein, obwohl es die Symptome selbst als Stichworte erkannte. Eskaliert
+  nur nach oben, nie nach unten.
 
 Standardmäßig hört der Leitstand nur auf `127.0.0.1`. Soll er von anderen
 Rechnern der Praxis erreichbar sein, `LEITSTAND_HOST=0.0.0.0` setzen — dann ist
@@ -234,6 +244,21 @@ in `telefon/audit.log` — anders als `verlauf.log` (fürs Leitstand-UI, wird au
 2000 Zeilen gekürzt) wird diese Datei nie überschrieben, nur angehängt, und
 zusätzlich per macOS `chflags uappnd` gegen nachträgliches Ändern/Kürzen
 abgesichert (auch der eigene Prozess kommt danach nur noch per Anhängen rein).
+
+## Bewertung & Trainingsdaten-Export
+
+Jede Karte im Leitstand hat 👍/👎 — war die Kategorisierung richtig? Bei 👎
+optional die richtige Kategorie/Dringlichkeit dazu angeben. Landet als
+`bewertung.json` im jeweiligen Anruf-Ordner.
+
+„📤 Bewertungen exportieren" (oder automatisch beim „Tag archivieren")
+schreibt alle aktuell bewerteten Anrufe als JSONL nach `training/` — ein
+Datensatz pro Anruf mit Transkript, Modell-Ausgabe, verwendetem
+Backend/Modell, Bewertung und ggf. Korrektur. Gedacht für externe Auswertung
+(z. B. um Kategorisierungs-Fehler systematisch zu finden statt zufällig,
+siehe das Notfall-Sicherheitsnetz oben). Der Export-Knopf verlangt eine
+Bestätigung, weil dabei Transkripte und Namen den Rechner verlassen — bewusst
+kein stiller Automatismus. `training/` ist gitignored.
 
 ## Datenschutz (DSGVO)
 
