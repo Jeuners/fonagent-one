@@ -486,6 +486,7 @@ padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:
    Struktur (Kategorie, Dringlichkeit, Zeit, Stapel) bleibt lesbar - nur was
    auf eine Person zurueckfuehrt wird geblurrt. */
 body.sicher a.waehlen{filter:blur(6px);user-select:none}
+body.sicher .tel-blur{filter:blur(6px);user-select:none}
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:var(--fg);
 color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;
 transition:opacity .2s,transform .2s;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.2)}
@@ -756,12 +757,18 @@ function zeichneStatus(s){
   document.getElementById('hinweise').innerHTML=h.map(t=>`<div class="hinweis">${esc(t)}</div>`).join('');
 }
 
+// Log-Zeilen enthalten oft die Anruf-ID (z.B. "23-44-01_004915223062462" -
+// Zeitstempel + Rufnummer zusammen, aus ordner.name). Nur die Ziffernfolge
+// ab 9 Stellen blurren (Rufnummern), nicht Datum/Uhrzeit-Anteile (<=8 Ziffern
+// in diesem Format) und nicht den restlichen Log-Text.
+const telBlur=s=>s.replace(/\d{9,}/g,m=>`<span class="tel-blur">${m}</span>`);
+
 function zeichneVerlauf(v){
   if(!v)return;
   const el=document.getElementById('verlauf');
   const unten=el.scrollHeight-el.scrollTop-el.clientHeight<40;
   el.innerHTML=v.map(e=>`<div class="z"><time>${esc((e.zeit||'').slice(11,19))}</time>
-    <span class="a a-${esc(e.art)}">${esc(e.art)}</span><span>${esc(e.text)}</span></div>`).join('')
+    <span class="a a-${esc(e.art)}">${esc(e.art)}</span><span>${telBlur(esc(e.text))}</span></div>`).join('')
     ||'<p class="leer">Noch nichts passiert.</p>';
   if(unten)el.scrollTop=el.scrollHeight;
 }
