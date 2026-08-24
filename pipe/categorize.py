@@ -101,11 +101,22 @@ def kategorisiere(transkript: str) -> tuple[dict, dict]:
     backend, modell = modellwahl.backend_und_modell()
     start = time.monotonic()
     if backend == "openrouter":
-        ergebnis, meta = _mit_openrouter(transkript, modell)
+        try:
+            ergebnis, meta = _mit_openrouter(transkript, modell)
+        except KategorisierungsFehler as fehler:
+            # OpenRouter (v.a. :free-Tier) ist nachweislich instabil - 502
+            # "temporarily overloaded", Latenz-Ausreisser bis 80s. Ein Anruf
+            # darf daran nicht scheitern und nach telefon/fehler verschwinden
+            # - Failover aufs lokale Ollama-Modell statt den Anruf zu verlieren.
+            print(f"  ⚠ {backend} fehlgeschlagen ({fehler}) - Failover auf {config.OLLAMA_MODELL}")
+            ergebnis, meta = _mit_ollama(transkript, config.OLLAMA_MODELL)
+            meta["failover_von"] = modell
+            backend, modell = "ollama", config.OLLAMA_MODELL
     else:
         ergebnis, meta = _mit_ollama(transkript, modell)
     meta["backend"] = backend
     meta["modell"] = modell
+    meta.setdefault("failover_von", None)
     meta["dauer_s"] = round(time.monotonic() - start, 2)
     ergebnis = _notfall_sicherheitsnetz(transkript, _bereinige(ergebnis))
     return ergebnis, meta
