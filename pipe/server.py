@@ -140,6 +140,7 @@ def anrufe() -> list[dict]:
             "dringlichkeit": e["dringlichkeit"],
             "name": e.get("anrufer_name"),
             "nummer": d.get("anrufer_nummer") or e.get("rueckrufnummer"),
+            "rueckrufnummer": e.get("rueckrufnummer"),
             "rueckruf": bool(e.get("rueckruf_gewuenscht")),
             "anliegen": e.get("anliegen_kurz") or "",
             "stichworte": e.get("stichworte") or [],
@@ -544,10 +545,18 @@ function karte(d){
   // Adressbuch). Quelle sichtbar machen, damit ein spaeterer Abgleich beider
   // (Text vs. Telefon) auf unterscheidbaren Daten aufsetzen kann.
   const quelleTag=d.name?`<span class="tag" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`:'';
+  // Genannte Rueckrufnummer nur zeigen, wenn sie sich von der CLIP-Nummer
+  // unterscheidet - sonst reine Wiederholung. Genau der Fall (Anruf von
+  // fremdem Anschluss, Rueckruf auf eigener Nummer gewuenscht) ging bisher
+  // im UI unter, obwohl er extrahiert wird (auswertung.rueckrufnummer).
+  const abweichend=d.rueckrufnummer&&waehlbar(d.rueckrufnummer)!==waehlbar(d.nummer);
+  const rueckrufZeile=abweichend?`<div class="meta">☎️ Rückruf an: ${nummerLink({...d,nummer:d.rueckrufnummer})}
+    <span class="tag" title="Nummer aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span></div>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
     <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
     <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge" title="Name via Rufnummer-Abgleich gegen das Adressbuch bestaetigt">✓ ${esc(d.kontakt)}</span>`:''}</div>
+    ${rueckrufZeile}
     <p class="anliegen">${esc(d.anliegen)}</p>
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}
