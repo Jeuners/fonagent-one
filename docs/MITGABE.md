@@ -11,7 +11,7 @@ die Reihenfolge, in der man prüft, ob es wirklich läuft.
 |---|---|
 | `.env` | aus `.env.example` kopieren, Werte eintragen (Abschnitt 3) |
 | Whisper-Modell (~1,6 GB) | `~/whisper-models/ggml-large-v3-turbo.bin`, Download siehe README |
-| Ollama-Modell (~6,6 GB) | `ollama pull qwen3.5:latest` |
+| Ollama-Modell (~5,2 GB) | `ollama pull qwen3:8b` |
 | Piper-Stimme | `~/piper-voices/…`, nur für die Ansage (Stufe 2) nötig |
 | `ablage/`, `telefon/eingang/`, `dashboard.html` | Anruf- und Patientendaten, bleiben absichtlich lokal |
 | FreeSWITCH-Konfiguration mit echtem SIP-Passwort | `telefon/freeswitch/einrichten.sh` schreibt sie aus der `.env` |
@@ -27,7 +27,7 @@ die meiste Arbeit. Für einen ersten Durchlauf reicht:
 ```bash
 brew install ffmpeg whisper-cpp
 brew install ollama && ollama serve &
-ollama pull qwen3.5:latest
+ollama pull qwen3:8b
 mkdir -p ~/whisper-models && cd ~/whisper-models
 curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
 cd ~/praxis-telefon-agent && cp .env.example .env
@@ -124,6 +124,6 @@ Wenn auf der anderen Seite etwas abweicht, sind vor allem diese Punkte für uns
 hier interessant:
 
 - andere Hardware/OS-Version und wie lange ein Anruf dann braucht (hier ~24 s),
-- ob `qwen3.5:latest` bei 16 GB RAM neben laufender Telefonie noch passt,
+- ob `qwen3:8b` bei 16 GB RAM neben laufender Telefonie noch passt,
 - jede Stelle, an der README oder `.env.example` nicht gereicht haben — die
   gehört dann dort hinein, nicht in diese Datei.

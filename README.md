@@ -61,7 +61,7 @@ brew install ollama && ollama serve &      # oder Ollama.app starten
 **2. Sprachmodell** — ordnet die Anliegen ein:
 
 ```bash
-ollama pull qwen3.5:latest                 # ~6,6 GB
+ollama pull qwen3:8b                       # ~5,2 GB, reines Textmodell (kein Vision-Ballast)
 ```
 
 Auf Rechnern mit 16 GB Arbeitsspeicher passt kein größeres Modell daneben,
