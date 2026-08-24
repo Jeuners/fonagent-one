@@ -528,7 +528,12 @@ border:1px solid var(--rand);background:var(--bg);color:var(--muted)}
 .dienste-kopf{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
 margin:22px 0 7px}
 #verlauf{background:var(--log);border:1px solid var(--rand);border-radius:11px;padding:10px;
-height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+height:180px;overflow-y:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+#verlauf::-webkit-scrollbar{width:8px}
+#verlauf::-webkit-scrollbar-track{background:transparent}
+#verlauf::-webkit-scrollbar-thumb{background:var(--muted);border-radius:99px;border:2px solid var(--log)}
+#verlauf::-webkit-scrollbar-thumb:hover{background:var(--fg)}
 .z{display:flex;gap:9px;padding:1px 0}
 .z time{color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
 .z .a{flex:none;width:64px;font-weight:600}
