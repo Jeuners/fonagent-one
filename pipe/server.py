@@ -477,18 +477,26 @@ padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
 .export-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
 .export-btn:hover{border-color:var(--muted)}
-.bewertung{display:flex;align-items:center;gap:6px;margin-top:8px}
-.bewertung button{font-size:15px;background:var(--bg);border:1px solid var(--rand);border-radius:7px;
-padding:3px 8px;cursor:pointer;line-height:1;opacity:.55}
-.bewertung button:hover{opacity:1;border-color:var(--muted)}
-.bw-gut.aktiv{opacity:1;background:color-mix(in srgb,var(--gut) 18%,var(--bg));border-color:var(--gut)}
-.bw-schlecht.aktiv{opacity:1;background:color-mix(in srgb,var(--schlecht) 18%,var(--bg));border-color:var(--schlecht)}
-.bw-korrektur{display:none;align-items:center;gap:5px}
-.bw-korrektur.zeigen{display:flex}
-.bw-korrektur select{font:inherit;font-size:12px;padding:2px 4px;border-radius:6px;
+.melde-btn{font-size:13px;background:var(--bg);border:1px solid var(--rand);border-radius:7px;
+padding:2px 6px;cursor:pointer;line-height:1.4;opacity:.5;flex:none}
+.melde-btn:hover{opacity:1;border-color:var(--muted)}
+.melde-btn.aktiv{opacity:1;background:color-mix(in srgb,var(--schlecht) 18%,var(--bg));border-color:var(--schlecht)}
+/* Meldung-Modal: generisches, wiederverwendbares Overlay (siehe JS-Objekt
+   "meldung" unten) - nicht fest an den Melde-Button gekoppelt, damit
+   spaetere "Melden"-Stellen dasselbe Modal nutzen koennen. */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+z-index:20;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.zeigen{display:flex}
+.modal{background:var(--karte);border-radius:12px;padding:18px;max-width:420px;width:100%;
+box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal h3{margin:0 0 4px;font-size:15px}
+.modal-kontext{color:var(--muted);font-size:12.5px;margin:0 0 10px}
+.modal textarea{width:100%;min-height:90px;font:inherit;font-size:13px;padding:8px;
+border-radius:8px;border:1px solid var(--rand);background:var(--bg);color:var(--fg);resize:vertical}
+.modal-aktionen{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.modal-aktionen button{font:inherit;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer;
 border:1px solid var(--rand);background:var(--bg);color:var(--fg)}
-.bw-korrektur button{font-size:12px;padding:3px 8px;opacity:1;background:var(--gut);
-color:#fff;border-color:var(--gut)}
+.modal-aktionen button.primaer{background:var(--gut);border-color:var(--gut);color:#fff}
 .sicher-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-right:8px}
 .sicher-btn:hover{border-color:var(--muted)}
@@ -586,6 +594,17 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 </footer>
 </div>
 <div class="toast" id="toast"></div>
+<div class="modal-overlay" id="meldungOverlay">
+  <div class="modal">
+    <h3 id="meldungTitel">Meldung</h3>
+    <p class="modal-kontext" id="meldungKontext"></p>
+    <textarea id="meldungTextfeld" placeholder="Was ist hier nicht richtig?"></textarea>
+    <div class="modal-aktionen">
+      <button id="meldungAbbrechen">Abbrechen</button>
+      <button id="meldungSpeichern" class="primaer">Speichern</button>
+    </div>
+  </div>
+</div>
 <script>
 const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#c8a227',niedrig:'#1f9d5c'};
 const KAT={termin:'Termin',rezept:'Rezept',ueberweisung:'Überweisung',befund:'Befund',
@@ -612,7 +631,7 @@ async function bewerte(id,wert,korrektur){
   const r=await fetch('/api/bewertung',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({id,bewertung:wert,korrektur:korrektur||null})});
   const d=await r.json().catch(()=>null);
-  toast(d&&d.ok?`Bewertung gespeichert (${wert==='gut'?'👍':'👎'})`:'Bewertung fehlgeschlagen');
+  toast(d&&d.ok?'Meldung gespeichert':'Meldung fehlgeschlagen');
   if(a)zeichneBoard();
 }
 
@@ -659,7 +678,9 @@ function karte(d){
       :`<span class="tag" title="E-Mail aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">📝 Text</span>`}</div>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
     <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
-    <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span></div>
+    <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span>
+    <button class="melde-btn${d.bewertung==='schlecht'?' aktiv':''}" data-id="${esc(d.id)}"
+      title="Kategorisierung melden - Feedback für die Entwicklung">👎</button></div>
     <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge" title="Name via Rufnummer-Abgleich gegen das Adressbuch bestaetigt">✓ ${esc(d.kontakt)}</span>`:''}</div>
     ${rueckrufZeile}
     ${emailZeile}
@@ -667,15 +688,6 @@ function karte(d){
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}
     <details data-id="${esc(d.id)}"${offen}><summary>Transkript</summary><p class="tr">${esc(d.transkript)}</p></details>
-    <div class="bewertung" data-id="${esc(d.id)}">
-      <button class="bw-gut${d.bewertung==='gut'?' aktiv':''}" data-wert="gut" title="Kategorisierung war korrekt - dient als Trainingsdaten">👍</button>
-      <button class="bw-schlecht${d.bewertung==='schlecht'?' aktiv':''}" data-wert="schlecht" title="Kategorisierung war falsch - optional korrigieren">👎</button>
-      <span class="bw-korrektur">
-        <select class="bw-kat"></select>
-        <select class="bw-dring"></select>
-        <button class="bw-speichern">Speichern</button>
-      </span>
-    </div>
     <div class="schieber">${knoepfe}</div>
   </article>`;
 }
@@ -699,21 +711,15 @@ function zeichneBoard(){
   el.querySelectorAll('details').forEach(d=>{
     d.ontoggle=()=>{d.open?offeneTranskripte.add(d.dataset.id):offeneTranskripte.delete(d.dataset.id)};
   });
-  el.querySelectorAll('.bewertung').forEach(bw=>{
-    const id=bw.dataset.id, korrektur=bw.querySelector('.bw-korrektur');
-    const selKat=bw.querySelector('.bw-kat'), selDring=bw.querySelector('.bw-dring');
-    selKat.innerHTML='<option value="">Kategorie unverändert</option>'
-      +Object.keys(KAT).map(k=>`<option value="${k}">${esc(KAT[k])}</option>`).join('');
-    selDring.innerHTML='<option value="">Dringlichkeit unverändert</option>'
-      +['niedrig','normal','hoch','notfall'].map(x=>`<option value="${x}">${x}</option>`).join('');
-    bw.querySelector('.bw-gut').onclick=e=>{e.stopPropagation();bewerte(id,'gut')};
-    bw.querySelector('.bw-schlecht').onclick=e=>{e.stopPropagation();korrektur.classList.toggle('zeigen')};
-    bw.querySelector('.bw-speichern').onclick=e=>{
+  el.querySelectorAll('.melde-btn').forEach(btn=>{
+    btn.onclick=e=>{
       e.stopPropagation();
-      const k={};
-      if(selKat.value)k.kategorie=selKat.value;
-      if(selDring.value)k.dringlichkeit=selDring.value;
-      bewerte(id,'schlecht',Object.keys(k).length?k:null);
+      const id=btn.dataset.id, d=ANRUFE.find(x=>x.id===id);
+      meldung.oeffnen({
+        titel:'Kategorisierung melden',
+        kontext:d?`${KAT[d.kategorie]||d.kategorie} · ${d.dringlichkeit} · ${d.name||'unbekannt'}`:'',
+        aufSpeichern:text=>bewerte(id,'schlecht',{text}),
+      });
     };
   });
   el.querySelectorAll('.karte').forEach(k=>{
@@ -829,10 +835,9 @@ async function takt(){
   // irgendeine Karte eine Aufnahme hatte (also fast immer).
   if([...document.querySelectorAll('#board audio')].some(a=>!a.paused))return;
   // Gleiches Problem wie beim Audio-Player: zeichneBoard() baut die Karten
-  // per innerHTML komplett neu, das reisst eine offene 👎-Korrektur-Auswahl
-  // wieder weg, bevor man sie ausfuellen kann ("erscheint, verschwindet
-  // wieder"). Nicht neu zeichnen, solange eine offen ist.
-  if(document.querySelector('.bw-korrektur.zeigen'))return;
+  // per innerHTML komplett neu - waehrend das Meldung-Modal offen ist, nicht
+  // neu zeichnen (sonst reisst es die Karte darunter samt Eingabe weg).
+  if(document.getElementById('meldungOverlay').classList.contains('zeigen'))return;
   const [s,a,v]=await Promise.all([hole('/api/status'),hole('/api/anrufe'),hole('/api/verlauf')]);
   if(s===null&&a===null&&v===null){verbindungsFehler++}
   else{verbindungsFehler=0;letzteAktualisierung=new Date()}
@@ -848,6 +853,46 @@ function toast(text){
   clearTimeout(toastZeit);
   toastZeit=setTimeout(()=>el.classList.remove('zeigen'),3500);
 }
+
+// Kleines, generisches Modal-"Framework" fuer Freitext-Meldungen - nicht
+// fest an den Melde-Button auf der Karte gekoppelt. Aufruf ueberall im Code:
+//   meldung.oeffnen({titel, kontext, aufSpeichern: text => {...}})
+// aufSpeichern wird erst nach Klick auf "Speichern" mit dem eingegebenen
+// Text aufgerufen; leere Eingaben werden abgewiesen (Fokus bleibt im Feld).
+const meldung=(()=>{
+  const overlay=document.getElementById('meldungOverlay');
+  const titelEl=document.getElementById('meldungTitel');
+  const kontextEl=document.getElementById('meldungKontext');
+  const textEl=document.getElementById('meldungTextfeld');
+  let aufSpeichern=null;
+
+  function schliessen(){
+    overlay.classList.remove('zeigen');
+    aufSpeichern=null;
+  }
+  function oeffnen({titel,kontext,aufSpeichern:cb}){
+    titelEl.textContent=titel||'Meldung';
+    kontextEl.textContent=kontext||'';
+    kontextEl.style.display=kontext?'block':'none';
+    textEl.value='';
+    aufSpeichern=cb;
+    overlay.classList.add('zeigen');
+    textEl.focus();
+  }
+  document.getElementById('meldungAbbrechen').onclick=schliessen;
+  document.getElementById('meldungSpeichern').onclick=async()=>{
+    const text=textEl.value.trim();
+    if(!text){textEl.focus();return}
+    const cb=aufSpeichern;
+    schliessen();
+    if(cb)await cb(text);
+  };
+  overlay.onclick=e=>{if(e.target===overlay)schliessen()};
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&overlay.classList.contains('zeigen'))schliessen();
+  });
+  return {oeffnen,schliessen};
+})();
 
 // Sicher-Modus merkt sich den Zustand pro Browser (localStorage) - beim
 // naechsten Aufruf (z.B. vor einer Bildschirmaufnahme) nicht vergessen.
