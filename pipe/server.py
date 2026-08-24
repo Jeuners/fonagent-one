@@ -531,7 +531,9 @@ border-radius:9px;padding:9px 11px;margin-bottom:9px;cursor:grab}
 .karte:active{cursor:grabbing}
 .karte.zieht{opacity:.4}
 .kopf{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.titel{font-weight:650;font-size:14px}
+.titel{font-weight:650;font-size:14.5px;margin-top:4px;line-height:1.3}
+.hinweis-klein{color:var(--muted);font-size:11px;font-weight:400;font-style:italic;white-space:nowrap}
+.warn-klein{color:var(--unklar);font-size:11px;font-weight:600;white-space:nowrap}
 .dring{color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;
 border-radius:999px;letter-spacing:.04em;margin-left:auto}
 .meta{color:var(--muted);font-size:12px;margin:3px 0 5px;font-variant-numeric:tabular-nums}
@@ -658,32 +660,38 @@ function karte(d){
   const notfallOffen=d.dringlichkeit==='notfall'&&d.stapel!==STAPEL[STAPEL.length-1];
   // Name kommt vom LLM aus dem Transkript (Vermutung, kein Abgleich) - im
   // Unterschied zum kontakt-badge (echter Rufnummer-Abgleich gegen das
-  // Adressbuch). Quelle sichtbar machen, damit ein spaeterer Abgleich beider
-  // (Text vs. Telefon) auf unterscheidbaren Daten aufsetzen kann.
-  const quelleTag=d.name?`<span class="tag" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span>`:'';
+  // Adressbuch). Redesign: statt 3x einer eigenen "ungeprüft"-Chip (Name,
+  // Rueckrufnummer, E-Mail einzeln - sah zugemuellt aus) jetzt ein einziger,
+  // dezenter Hinweis (kein Rahmen/Chip, nur kleiner Text) direkt am Namen,
+  // plus Rueckrufnummer+E-Mail auf einer gemeinsamen Zeile mit nur einem
+  // gemeinsamen Hinweis am Ende statt Einzel-Badges pro Feld.
+  const quelleTag=d.name?`<span class="hinweis-klein" title="Name aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span>`:'';
   // Genannte Rueckrufnummer nur zeigen, wenn sie sich von der CLIP-Nummer
   // unterscheidet - sonst reine Wiederholung. Genau der Fall (Anruf von
   // fremdem Anschluss, Rueckruf auf eigener Nummer gewuenscht) ging bisher
   // im UI unter, obwohl er extrahiert wird (auswertung.rueckrufnummer).
   const abweichend=d.rueckrufnummer&&waehlbar(d.rueckrufnummer)!==waehlbar(d.nummer);
-  const rueckrufZeile=abweichend?`<div class="meta">☎️ Rückruf an: ${nummerLink({...d,nummer:d.rueckrufnummer})}
-    <span class="tag" title="Nummer aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span></div>`:'';
   // email_korrigiert: Whisper transkribiert gesprochenes "at" beim Diktieren
   // manchmal als Punkt statt "@" (z.B. "gdg.dillenberg.net" statt
   // "gdg@dillenberg.net") - categorize.py repariert das als Vorschlag, aber
-  // mehrdeutig (koennte auch eine genannte Subdomain sein), deshalb hier
-  // sichtbar als Vermutung markiert statt stillschweigend uebernommen.
-  const emailZeile=d.email?`<div class="meta">📧 <a class="mail" href="mailto:${esc(d.email)}">${esc(d.email)}</a>
-    ${d.email_korrigiert?`<span class="tag" title="Whisper hat das @ vermutlich als Punkt transkribiert - automatisch repariert, bitte pruefen">⚠️ vermutete Korrektur</span>`
-      :`<span class="tag" title="E-Mail aus dem Sprach-Transkript erkannt (Ollama) - nicht verifiziert">🎙️ ungeprüft</span>`}</div>`:'';
+  // mehrdeutig (koennte auch eine genannte Subdomain sein), deshalb sichtbar
+  // als Vermutung markiert statt stillschweigend uebernommen - das ist ein
+  // eigener, staerkerer Warnhinweis (Daten evtl. FALSCH, nicht nur ungeprueft).
+  const kontaktteile=[];
+  if(abweichend)kontaktteile.push(`☎️ ${nummerLink({...d,nummer:d.rueckrufnummer})}`);
+  if(d.email)kontaktteile.push(`📧 <a class="mail" href="mailto:${esc(d.email)}">${esc(d.email)}</a>`
+    +(d.email_korrigiert?` <span class="warn-klein" title="Whisper hat das @ vermutlich als Punkt transkribiert - automatisch repariert, bitte prüfen">⚠️ vermutete Korrektur</span>`:''));
+  const kontaktZeile=kontaktteile.length?`<div class="meta">${kontaktteile.join(' · ')}
+    <span class="hinweis-klein" title="Aus dem Sprach-Transkript erkannt - nicht verifiziert">🎙️ ungeprüft</span></div>`:'';
   return `<article class="karte${notfallOffen?' notfall-offen':''}" draggable="true" data-id="${esc(d.id)}" style="--akzent:${f}">
-    <div class="kopf"><span class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')}</span> ${quelleTag}
-    <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span>
-    <button class="melde-btn${d.bewertung==='schlecht'?' aktiv':''}" data-id="${esc(d.id)}"
-      title="Kategorisierung melden - Feedback für die Entwicklung">👎</button></div>
+    <div class="kopf">
+      <span class="dring" style="background:${f}">${esc(d.kategorie==='notfall'?'notfall':d.dringlichkeit)}</span>
+      <button class="melde-btn${d.bewertung==='schlecht'?' aktiv':''}" data-id="${esc(d.id)}"
+        title="Kategorisierung melden - Feedback für die Entwicklung">👎</button>
+    </div>
+    <div class="titel">${esc(KAT[d.kategorie]||d.kategorie)} · ${esc(d.name||'unbekannt')} ${quelleTag}</div>
     <div class="meta">${esc(d.empfangen.replace('T',' '))} · ${nummerLink(d)}${d.rueckruf?' · 📞 Rückruf':''}${d.kontakt?`<span class="kontakt-badge" title="Name via Rufnummer-Abgleich gegen das Adressbuch bestaetigt">✓ ${esc(d.kontakt)}</span>`:''}</div>
-    ${rueckrufZeile}
-    ${emailZeile}
+    ${kontaktZeile}
     <p class="anliegen">${esc(d.anliegen)}</p>
     <div>${(d.stichworte||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div>
     ${d.audio?`<audio controls preload="none" src="${d.audio}"></audio>`:''}
