@@ -8,7 +8,6 @@ ab (lokal und optional in Nextcloud).
 
 **Vollständig on-prem** — keine Patientendaten verlassen den Rechner.
 
-![Der Leitstand im Dunkelmodus: Dienste-Ampeln und Verlauf oben, darunter das Board mit Eingang, In Bearbeitung, Rückfragen und Erledigt](docs/agentone-screen-1.jpg)
 
 > **Hinweis:** Alle Namen, Rufnummern und Anliegen in diesem Repository sind
 > erfunden — auch im Screenshot und in der Beispielkonfiguration. „Praxis
