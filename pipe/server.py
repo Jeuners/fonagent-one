@@ -229,6 +229,30 @@ def verlauf(anzahl: int = 150) -> list[dict]:
     return alle[-anzahl:]
 
 
+# Bei Testzugang (kein Passwort, oeffentlicher Link) werden Rufnummern nicht
+# nur im Frontend per CSS geblurred (das verdeckt nur die Anzeige - im
+# Seitenquelltext/DevTools/Netzwerk-Tab stehen sie trotzdem echt drin),
+# sondern schon hier serverseitig ersetzt. Die echten Werte verlassen den
+# Server in diesem Modus gar nicht erst.
+_MASKE = "•••• •••• •••"
+
+
+def _maskiere_anrufe(anrufe_liste: list[dict]) -> list[dict]:
+    for a in anrufe_liste:
+        if a.get("nummer"):
+            a["nummer"] = _MASKE
+        if a.get("rueckrufnummer"):
+            a["rueckrufnummer"] = _MASKE
+    return anrufe_liste
+
+
+def _maskiere_verlauf(eintraege: list[dict]) -> list[dict]:
+    for e in eintraege:
+        if e.get("text"):
+            e["text"] = re.sub(r"\d{9,}", "•••••••••", e["text"])
+    return eintraege
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):  # kein Zugriffslog auf der Konsole
         pass
@@ -307,9 +331,15 @@ class Handler(BaseHTTPRequestHandler):
             daten["testzugang"] = getattr(self, "_via_token", False)
             self._json(daten)
         elif pfad == "/api/anrufe":
-            self._json({"stapel": stapel.erlaubt(), "anrufe": anrufe()})
+            liste = anrufe()
+            if getattr(self, "_via_token", False):
+                liste = _maskiere_anrufe(liste)
+            self._json({"stapel": stapel.erlaubt(), "anrufe": liste})
         elif pfad == "/api/verlauf":
-            self._json(verlauf(150))
+            eintraege = verlauf(150)
+            if getattr(self, "_via_token", False):
+                eintraege = _maskiere_verlauf(eintraege)
+            self._json(eintraege)
         elif pfad == "/api/modell":
             self._json({"aktuell": modellwahl.aktuelle_id(), "optionen": modellwahl.AUSWAHL})
         elif pfad.startswith("/audio/"):
