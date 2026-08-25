@@ -658,6 +658,13 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
     1.36.87 2.29 0 3.28-2 4-3.9 4.22.31.27.58.79.58 1.6 0 1.15-.01 2.08-.01 2.36 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
     Projekt auf GitHub
   </a>
+  <a href="https://www.linkedin.com/in/hgod/" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.03-1.85-3.03-1.85
+    0-2.14 1.45-2.14 2.94v5.66H9.34V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34
+    7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>
+    LinkedIn
+  </a>
+  <a href="tel:+4915223062462">📞 0152 23062462</a>
   <a href="https://paypal.me/jeuner" target="_blank" rel="noopener">☕ Unterstützen</a>
 </footer>
 </div>
