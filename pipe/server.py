@@ -665,6 +665,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
     LinkedIn
   </a>
   <a href="tel:+4915223062462">📞 +49 152 23062462</a>
+  <a href="https://next.dillenberg.net/u/dillenberg" target="_blank" rel="noopener">☁️ Nextcloud</a>
   <a href="https://paypal.me/jeuner" target="_blank" rel="noopener">☕ Unterstützen</a>
 </footer>
 </div>
