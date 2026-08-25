@@ -664,7 +664,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
     7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>
     LinkedIn
   </a>
-  <a href="tel:+4915223062462">📞 0152 23062462</a>
+  <a href="tel:+4915223062462">📞 +49 152 23062462</a>
   <a href="https://paypal.me/jeuner" target="_blank" rel="noopener">☕ Unterstützen</a>
 </footer>
 </div>
