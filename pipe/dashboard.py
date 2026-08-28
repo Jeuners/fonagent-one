@@ -13,8 +13,8 @@ from pathlib import Path
 
 from . import config, kategorien
 
-RANG = {"notfall": 0, "hoch": 1, "normal": 2, "niedrig": 3}
-FARBE = {"notfall": "#E9322D", "hoch": "#E0A339", "normal": "#31CC7C", "niedrig": "#8A93A3"}
+RANG = kategorien.DRINGLICHKEIT_RANG
+FARBE = {k: f"#{v}" for k, v in kategorien.DRINGLICHKEIT_FARBE.items()}
 KAT_LABEL = kategorien.KATEGORIE_LABEL
 
 

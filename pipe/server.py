@@ -26,7 +26,26 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import bewertung, config, dashboard, dienste, export, kategorien, modellwahl, protokoll, stapel, testzugang
 
 
+# Anrufe() liest alle meta.json unter ablage/ (auch bereits archivierte, die
+# erst danach rausgefiltert werden) - waechst mit der Gesamtzahl je
+# empfangener Anrufe. Mehrere angemeldete Nutzer pollen das alle 3s parallel
+# (siehe takt() im Frontend) - kurz zwischenspeichern, damit das nicht mit
+# der Nutzerzahl skaliert.
+_ANRUFE_CACHE: dict[str, tuple[float, list[dict]]] = {}
+ANRUFE_CACHE_S = 2.0
+
+
 def anrufe() -> list[dict]:
+    jetzt = time.time()
+    gepuffert = _ANRUFE_CACHE.get("anrufe")
+    if gepuffert and jetzt - gepuffert[0] < ANRUFE_CACHE_S:
+        return gepuffert[1]
+    liste = _anrufe_berechnen()
+    _ANRUFE_CACHE["anrufe"] = (jetzt, liste)
+    return liste
+
+
+def _anrufe_berechnen() -> list[dict]:
     liste = []
     for d in dashboard._anrufe():
         e = d["auswertung"]
@@ -138,11 +157,24 @@ def _telefon_ereignisse(anzahl: int = 60) -> list[dict]:
     return ereignisse[-anzahl:]
 
 
+# _telefon_ereignisse() liest bis zu 300 KB aus dem FreeSWITCH-Log und scannt
+# bis zu 4000 Zeilen per Regex - bei mehreren Nutzern, die alle 3s pollen,
+# unnoetig oft. Gleicher kurzer Cache wie bei anrufe().
+_VERLAUF_CACHE: dict[str, tuple[float, list[dict]]] = {}
+VERLAUF_CACHE_S = 2.0
+
+
 def verlauf(anzahl: int = 150) -> list[dict]:
     """Pipe-Protokoll und Telefonie-Ereignisse, zeitlich zusammengeführt."""
+    jetzt = time.time()
+    gepuffert = _VERLAUF_CACHE.get("verlauf")
+    if gepuffert and jetzt - gepuffert[0] < VERLAUF_CACHE_S:
+        return gepuffert[1]
     alle = protokoll.lies(anzahl) + _telefon_ereignisse()
     alle.sort(key=lambda e: e.get("zeit") or "")
-    return alle[-anzahl:]
+    ergebnis = alle[-anzahl:]
+    _VERLAUF_CACHE["verlauf"] = (jetzt, ergebnis)
+    return ergebnis
 
 
 # Bei Testzugang (kein Passwort, oeffentlicher Link) werden Rufnummern nicht
@@ -259,14 +291,18 @@ class Handler(BaseHTTPRequestHandler):
             daten["nutzer"] = self._nutzer
             self._json(daten)
         elif pfad == "/api/anrufe":
+            # anrufe() ist gecacht (mehrere Nutzer pollen alle 3s parallel) -
+            # bei Testzugang auf einer Kopie maskieren, sonst wuerden die
+            # ersetzten Rufnummern die naechste (nicht maskierte) Antwort
+            # verseuchen.
             liste = anrufe()
             if getattr(self, "_via_token", False):
-                liste = _maskiere_anrufe(liste)
+                liste = _maskiere_anrufe([dict(a) for a in liste])
             self._json({"stapel": stapel.erlaubt(), "anrufe": liste})
         elif pfad == "/api/verlauf":
             eintraege = verlauf(150)
             if getattr(self, "_via_token", False):
-                eintraege = _maskiere_verlauf(eintraege)
+                eintraege = _maskiere_verlauf([dict(e) for e in eintraege])
             self._json(eintraege)
         elif pfad == "/api/modell":
             self._json({"aktuell": modellwahl.aktuelle_id(), "optionen": modellwahl.auswahl()})
@@ -621,7 +657,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
   </div>
 </div>
 <script>
-const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#1f9d5c',niedrig:'#8a93a3'};
+const FARBE=__FARBE_JSON__;
 const KAT=__KAT_JSON__;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let STAPEL=[], ANRUFE=[], offeneTranskripte=new Set(), pausiert=false;
@@ -1041,6 +1077,8 @@ def _seite() -> str:
     zusammengesetzt.
     """
     seite = SEITE.replace("__KAT_JSON__", json.dumps(kategorien.KATEGORIE_LABEL, ensure_ascii=False))
+    farben = {k: f"#{v}" for k, v in kategorien.DRINGLICHKEIT_FARBE.items()}
+    seite = seite.replace("__FARBE_JSON__", json.dumps(farben, ensure_ascii=False))
     return seite.replace("__PROFIL_NAME__", html.escape(kategorien.PROFIL_NAME))
 
 

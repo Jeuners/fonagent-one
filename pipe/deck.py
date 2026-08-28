@@ -22,13 +22,8 @@ from . import config, kategorien
 
 _API = "/index.php/apps/deck/api/v1.1"
 
-# Farben (6-stelliges Hex ohne #) je Dringlichkeit.
-DRINGLICHKEIT_FARBE = {
-    "niedrig": "8A93A3",  # grau
-    "normal": "31CC7C",   # grün
-    "hoch": "E0A339",     # orange
-    "notfall": "E9322D",  # rot
-}
+# Farben je Dringlichkeit - siehe pipe/kategorien.py.
+DRINGLICHKEIT_FARBE = kategorien.DRINGLICHKEIT_FARBE
 # Lesbare Namen der Kategorien für den Kartentitel - der Stapel sagt jetzt,
 # wie weit die Bearbeitung ist, nicht mehr worum es geht.
 KATEGORIE_LABEL = kategorien.KATEGORIE_LABEL

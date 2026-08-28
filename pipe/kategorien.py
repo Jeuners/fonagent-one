@@ -6,9 +6,10 @@ Label) dieselbe Quelle nutzen - ein neues Profil ändert nur die JSON-Datei,
 kein Python-Code.
 
 Dringlichkeitsstufen sind bewusst NICHT Teil des Profils: die vierstufige
-Eskalationsskala (niedrig/normal/hoch/notfall) ist einsatzzweck-unabhängig
-und steckt fest in Farben/Reihenfolge in dashboard.py, deck.py und der
-Leitstand-Oberfläche - nur die Kategorien selbst unterscheiden sich fachlich.
+Eskalationsskala (niedrig/normal/hoch/notfall) ist einsatzzweck-unabhängig.
+Farbe und Sortierrang je Stufe stehen deshalb ebenfalls hier - eine Quelle
+für dashboard.py, deck.py und den Leitstand (server.py), statt an drei
+Stellen von Hand synchron zu halten.
 """
 from __future__ import annotations
 
@@ -18,6 +19,17 @@ from functools import lru_cache
 from . import config
 
 DRINGLICHKEITEN = ["niedrig", "normal", "hoch", "notfall"]
+# Farben (6-stelliges Hex ohne "#" - so will es Nextcloud Deck; dashboard.py
+# und server.py stellen sich das "#" selbst voran).
+DRINGLICHKEIT_FARBE = {
+    "niedrig": "8A93A3",  # grau - unwichtig
+    "normal": "31CC7C",   # grün
+    "hoch": "E0A339",     # orange
+    "notfall": "E9322D",  # rot
+}
+# Sortierrang (0 = dringlichst zuerst) - aus DRINGLICHKEITEN abgeleitet statt
+# separat gepflegt.
+DRINGLICHKEIT_RANG = {d: i for i, d in enumerate(reversed(DRINGLICHKEITEN))}
 
 
 @lru_cache(maxsize=1)
