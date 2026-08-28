@@ -187,6 +187,7 @@ class Handler(BaseHTTPRequestHandler):
         """
         self._zusatz_header: list[tuple[str, str]] = []
         self._via_token = False  # True nur bei Zugang per Testzugangs-Token, nicht Passwort
+        self._nutzer: str | None = None  # wer angemeldet ist - fuer den Verlauf (wer hat was verschoben)
         konten = config.leitstand_konten()
         if not konten:
             return True
@@ -197,10 +198,12 @@ class Handler(BaseHTTPRequestHandler):
             self._zusatz_header.append(
                 ("Set-Cookie", f"zugang={token}; Max-Age={rest_s}; Path=/; HttpOnly; Secure; SameSite=Lax"))
             self._via_token = True
+            self._nutzer = "Testzugang"
             return True
         cookie_wert = SimpleCookie(self.headers.get("Cookie", "")).get("zugang")
         if cookie_wert and testzugang.gueltig(cookie_wert.value):
             self._via_token = True
+            self._nutzer = "Testzugang"
             return True
 
         kopf = self.headers.get("Authorization", "")
@@ -212,7 +215,10 @@ class Handler(BaseHTTPRequestHandler):
             return False
         # compare_digest: Vergleichsdauer verrät nichts über das Passwort.
         erwartet = konten.get(nutzer)
-        return erwartet is not None and hmac.compare_digest(wort, erwartet)
+        if erwartet is None or not hmac.compare_digest(wort, erwartet):
+            return False
+        self._nutzer = nutzer
+        return True
 
     def _anmeldung_verlangen(self) -> None:
         self.send_response(401)
@@ -341,7 +347,8 @@ class Handler(BaseHTTPRequestHandler):
         if not stapel.setze(ordner, ziel):
             self._json({"ok": False, "fehler": f"unbekannter Stapel: {ziel}"})
             return
-        protokoll.schreibe("stapel", f"{ordner.name} → {ziel}")
+        zusatz = f" (von {self._nutzer})" if self._nutzer else ""
+        protokoll.schreibe("stapel", f"{ordner.name} → {ziel}{zusatz}", nutzer=self._nutzer)
         self._json({"ok": True})
 
     def _audio(self, rest: str) -> None:
