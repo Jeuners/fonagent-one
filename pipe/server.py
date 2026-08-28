@@ -255,7 +255,7 @@ class Handler(BaseHTTPRequestHandler):
                 eintraege = _maskiere_verlauf(eintraege)
             self._json(eintraege)
         elif pfad == "/api/modell":
-            self._json({"aktuell": modellwahl.aktuelle_id(), "optionen": modellwahl.AUSWAHL})
+            self._json({"aktuell": modellwahl.aktuelle_id(), "optionen": modellwahl.auswahl()})
         elif pfad.startswith("/audio/"):
             self._audio(pfad[len("/audio/"):])
         else:
