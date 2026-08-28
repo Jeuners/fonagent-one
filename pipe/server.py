@@ -186,7 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         """
         self._zusatz_header: list[tuple[str, str]] = []
         self._via_token = False  # True nur bei Zugang per Testzugangs-Token, nicht Passwort
-        if not config.LEITSTAND_PASS:
+        konten = config.leitstand_konten()
+        if not konten:
             return True
 
         token = parse_qs(urlparse(self.path).query).get("zugang", [None])[0]
@@ -209,8 +210,8 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return False
         # compare_digest: Vergleichsdauer verrät nichts über das Passwort.
-        return (hmac.compare_digest(nutzer, config.LEITSTAND_USER)
-                and hmac.compare_digest(wort, config.LEITSTAND_PASS))
+        erwartet = konten.get(nutzer)
+        return erwartet is not None and hmac.compare_digest(wort, erwartet)
 
     def _anmeldung_verlangen(self) -> None:
         self.send_response(401)

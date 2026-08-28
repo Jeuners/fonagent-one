@@ -117,6 +117,22 @@ LEITSTAND_PORT = int(os.environ.get("LEITSTAND_PORT", "8088"))
 # auf den Seiten stehen Transkripte und Aufnahmen von Patienten.
 LEITSTAND_USER = os.environ.get("LEITSTAND_USER", "praxis")
 LEITSTAND_PASS = os.environ.get("LEITSTAND_PASS", "")
+# Weitere Konten zusaetzlich zum obigen (z.B. ein eigenes Konto fuer den
+# Notdienst neben dem Praxis-Konto) - kommagetrennt "nutzer:passwort",
+# z.B. "notdienst:Berg,spaeter:nochwas".
+LEITSTAND_ZUGAENGE = os.environ.get("LEITSTAND_ZUGAENGE", "")
+
+
+def leitstand_konten() -> dict[str, str]:
+    """Alle gueltigen Leitstand-Logins als {nutzername: passwort}."""
+    konten = {}
+    if LEITSTAND_PASS:
+        konten[LEITSTAND_USER] = LEITSTAND_PASS
+    for eintrag in LEITSTAND_ZUGAENGE.split(","):
+        nutzer, _, passwort = eintrag.strip().partition(":")
+        if nutzer and passwort:
+            konten[nutzer] = passwort
+    return konten
 
 # Geteiltes Geheimnis mit dilles-agent.php ("agent-one test"-Kommando auf
 # dillenberg.net) fuer signierte, 1h gueltige Testzugangslinks - siehe
