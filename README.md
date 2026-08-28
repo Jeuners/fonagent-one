@@ -23,8 +23,10 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 1. **Die Pipe** (fertig): Audio → Transkript → Kategorie → Ablage.
 2. **Telefonie** (steht): FreeSWITCH nimmt über den Plusnet-Trunk an, spielt die
    Ansage, nimmt auf und legt die Datei im Eingang der Pipe ab.
-3. **Feinschliff** (teilweise): Löschfristen ✅, Notfall-Alarm ✅ — offen:
-   Monitoring/Alerting bei Diensteausfall, Verschlüsselung at rest.
+3. **Feinschliff** (teilweise): Löschfristen ✅, Notfall-Alarm ✅,
+   Verschlüsselung at rest ✅ (Betreiber-Pflicht: FileVault, siehe
+   [Datenschutz](#datenschutz-dsgvo)), Monitoring/Alerting bei Diensteausfall ✅
+   (`pipe/monitor.py`, siehe unten).
 
 ## Bausteine
 
@@ -37,6 +39,9 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 | `pipe/config.py` | Konfiguration aus `.env` |
 | `pipe/watch.py` | Beobachtet den Eingang und schiebt Aufnahmen durch die Pipe |
 | `pipe/server.py` | Leitstand: Live-Ansicht mit Status, Anrufen und Verlauf |
+| `pipe/dienste.py` | Zustand der beteiligten Dienste (Telefon, Verarbeitung, Spracherkennung, Nextcloud) — geteilt von Leitstand und Störungswache |
+| `pipe/monitor.py` | Störungswache: alarmiert lokal (macOS-Benachrichtigung + Ton), wenn ein Dienst ausfällt |
+| `pipe/alarm.py` | Verschickt den lokalen macOS-Alarm (osascript) |
 | `pipe/protokoll.py` | Ereignisprotokoll (JSONL) für den Leitstand |
 | `pipe/audit.py` | Unveränderliches Audit-Log (append-only, siehe unten) |
 | `pipe/loeschen.py` | Löscht erledigte Anrufe nach Ablauf der Aufbewahrungsfrist |
@@ -247,6 +252,29 @@ in `telefon/audit.log` — anders als `verlauf.log` (fürs Leitstand-UI, wird au
 zusätzlich per macOS `chflags uappnd` gegen nachträgliches Ändern/Kürzen
 abgesichert (auch der eigene Prozess kommt danach nur noch per Anhängen rein).
 
+## Störungswache (Monitoring/Alerting)
+
+Die Dienste-Ampel im Leitstand (Telefon, Verarbeitung, Spracherkennung,
+Nextcloud) zeigt den Zustand nur an, wenn gerade jemand die Seite offen hat.
+`pipe/monitor.py` läuft deshalb als **eigener Prozess** (von
+`telefon/starten.sh` mitgestartet, Log `telefon/monitor.log`), fragt dieselbe
+Ampel (`pipe/dienste.py`) alle `MONITOR_TAKT_S` Sekunden (Default 60) ab und
+alarmiert bei einer echten Störung (`schlecht`/`aus` — nicht bei `unklar`,
+z. B. Nextcloud unkonfiguriert) lokal per macOS-Systembenachrichtigung + Ton
+(`pipe/alarm.py`, `osascript`). Solange die Störung anhält, wird alle
+`MONITOR_WIEDERHOLUNG_MIN` Minuten (Default 15) erneut erinnert; bei
+Wiederherstellung einmalig „wieder ok".
+
+Bewusst ein eigener, dritter Prozess statt in `pipe.watch` oder `pipe.server`
+eingebaut: fällt einer der beiden aus, kann die Wache das trotzdem noch
+melden. Wirkt nur lokal auf diesem Mac — für Alarme aufs Handy (z. B. per
+Push/E-Mail) `pipe/alarm.py` erweitern.
+
+```bash
+python3 -m pipe.monitor            # dauerhaft beobachten (normalerweise per starten.sh)
+python3 -m pipe.monitor --einmal   # einmal prüfen, für Tests
+```
+
 ## Bewertung & Trainingsdaten-Export
 
 Jede Karte im Leitstand hat 👍/👎 — war die Kategorisierung richtig? Bei 👎
@@ -275,3 +303,17 @@ Gesundheitsdaten — Pflichten für den Produktivbetrieb (Stufe 2):
 > beiden Punkte noch nicht (kein Notfall-Hinweis, keine Aufnahme-Einwilligung)
 > — Text anpassen und `ansage_bauen.sh` neu laufen lassen, bevor die Anlage im
 > echten Praxisbetrieb ans Netz geht.
+
+> **Verschlüsselung at rest — Pflicht des Betreibers:** Die Pipe legt
+> Aufnahmen, Transkripte und Metadaten (`ablage/`, `telefon/`, `training/`)
+> unverschlüsselt auf der Platte ab und verlässt sich auf
+> Festplattenverschlüsselung durch das Betriebssystem. **FileVault muss auf
+> jedem Rechner aktiviert sein, der diese Pipe betreibt**
+> (Systemeinstellungen → Datenschutz & Sicherheit → FileVault, oder
+> `sudo fdesetup enable`) — den Recovery-Key sicher verwahren (Passwort-
+> Tresor), da er das einzige Mittel bei vergessenem Login-Passwort ist.
+> Ist FileVault auf einem Zielsystem nicht aktivierbar oder nicht zulässig
+> (z. B. Mehrbenutzer-Rechner, andere Auflagen), reicht das nicht aus — dann
+> braucht die App eine eigene Verschlüsselung der Ablage, die es aktuell
+> **nicht** gibt. Das Aktivieren/Prüfen von FileVault ist Aufgabe des
+> Betreibers vor Ort, nicht Teil dieses Repos.

@@ -168,6 +168,19 @@ def nextcloud_aktiv() -> bool:
     return bool(NEXTCLOUD_URL and NEXTCLOUD_USER and NEXTCLOUD_PASS)
 
 
+# --- Störungswache (pipe.monitor) --------------------------------------------
+# Prueft die Dienste-Ampel (pipe.dienste: Telefon, Verarbeitung, Spracherkennung,
+# Nextcloud) periodisch und alarmiert lokal per macOS-Benachrichtigung + Ton,
+# wenn niemand auf den Leitstand schaut. Eigener Prozess (siehe
+# telefon/starten.sh) - faellt pipe.watch oder pipe.server aus, meldet die
+# Wache das trotzdem noch.
+MONITOR_TAKT_S = int(os.environ.get("MONITOR_TAKT_S", "60") or "60")
+# Erinnerungsabstand, waehrend eine Stoerung anhaelt - sonst nur ein einziger
+# Alarm beim Ausfall, der leicht untergeht.
+MONITOR_WIEDERHOLUNG_MIN = int(os.environ.get("MONITOR_WIEDERHOLUNG_MIN", "15") or "15")
+# macOS-Systemton (siehe /System/Library/Sounds), der bei jedem Alarm abgespielt wird.
+MONITOR_TON = os.environ.get("MONITOR_TON", "Sosumi").strip() or "Sosumi"
+
 # --- Aufbewahrungsfrist (pipe.loeschen) --------------------------------------
 # Nach so vielen Tagen wird ein Anruf-Ordner (Aufnahme + Transkript + Meta)
 # geloescht - lokal und, falls hochgeladen, auch bei Nextcloud. 0 = aus (nichts

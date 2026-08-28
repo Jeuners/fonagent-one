@@ -109,6 +109,12 @@ if [ "${status:-}" = "UP" ]; then
     sleep 2
     head -1 telefon/leitstand.log
   fi
+  if pgrep -f "[p]ipe.monitor" >/dev/null; then
+    echo "Stoerungswache laeuft bereits."
+  else
+    nohup python3 -u -m pipe.monitor > telefon/monitor.log 2>&1 &
+    echo "Stoerungswache gestartet (Log: telefon/monitor.log)"
+  fi
   sleep 2
   echo
   ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
