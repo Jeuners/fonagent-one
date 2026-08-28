@@ -602,7 +602,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
   </div>
 </div>
 <script>
-const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#c8a227',niedrig:'#1f9d5c'};
+const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#1f9d5c',niedrig:'#8a93a3'};
 const KAT=__KAT_JSON__;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let STAPEL=[], ANRUFE=[], offeneTranskripte=new Set(), pausiert=false;

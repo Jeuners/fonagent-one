@@ -24,8 +24,8 @@ _API = "/index.php/apps/deck/api/v1.1"
 
 # Farben (6-stelliges Hex ohne #) je Dringlichkeit.
 DRINGLICHKEIT_FARBE = {
-    "niedrig": "31CC7C",  # grün
-    "normal": "F1DB50",   # gelb
+    "niedrig": "8A93A3",  # grau
+    "normal": "31CC7C",   # grün
     "hoch": "E0A339",     # orange
     "notfall": "E9322D",  # rot
 }

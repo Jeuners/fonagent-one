@@ -14,7 +14,7 @@ from pathlib import Path
 from . import config, kategorien
 
 RANG = {"notfall": 0, "hoch": 1, "normal": 2, "niedrig": 3}
-FARBE = {"notfall": "#E9322D", "hoch": "#E0A339", "normal": "#C9A227", "niedrig": "#31CC7C"}
+FARBE = {"notfall": "#E9322D", "hoch": "#E0A339", "normal": "#31CC7C", "niedrig": "#8A93A3"}
 KAT_LABEL = kategorien.KATEGORIE_LABEL
 
 
