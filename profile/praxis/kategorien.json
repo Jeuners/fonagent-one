@@ -1,0 +1,18 @@
+{
+  "kategorien": [
+    "termin", "rezept", "ueberweisung", "befund",
+    "verwaltung", "beschwerden", "notfall", "rueckruf", "sonstiges"
+  ],
+  "kategorie_labels": {
+    "termin": "Termin",
+    "rezept": "Rezept",
+    "ueberweisung": "Überweisung",
+    "befund": "Befund",
+    "verwaltung": "Verwaltung",
+    "beschwerden": "Beschwerden",
+    "notfall": "Notfall",
+    "rueckruf": "Rückruf",
+    "sonstiges": "Sonstiges"
+  },
+  "sicherheitsnetz_kategorie": "notfall"
+}

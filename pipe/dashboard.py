@@ -11,15 +11,11 @@ import json
 import sys
 from pathlib import Path
 
-from . import config
+from . import config, kategorien
 
 RANG = {"notfall": 0, "hoch": 1, "normal": 2, "niedrig": 3}
 FARBE = {"notfall": "#E9322D", "hoch": "#E0A339", "normal": "#C9A227", "niedrig": "#31CC7C"}
-KAT_LABEL = {
-    "termin": "Termin", "rezept": "Rezept", "ueberweisung": "Überweisung",
-    "befund": "Befund", "verwaltung": "Verwaltung", "beschwerden": "Beschwerden", "notfall": "Notfall",
-    "rueckruf": "Rückruf", "sonstiges": "Sonstiges",
-}
+KAT_LABEL = kategorien.KATEGORIE_LABEL
 
 
 def _anrufe() -> list[dict]:
@@ -65,7 +61,7 @@ def baue(ausgabe: Path) -> Path:
     karten = "\n".join(_karte(d) for d in anrufe)
     doc = f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Anruf-Übersicht — Praxis Musterhausen</title>
+<title>Anruf-Übersicht</title>
 <style>
 :root{{--bg:#f6f7f9;--fg:#1a2230;--karte:#fff;--rand:#e4e8ee;--muted:#6b7688}}
 @media(prefers-color-scheme:dark){{:root{{--bg:#12151b;--fg:#e7ecf3;--karte:#1b2029;--rand:#2a313d;--muted:#93a0b4}}}}

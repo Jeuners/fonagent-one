@@ -1,0 +1,16 @@
+# Deterministisches Sicherheitsnetz, unabhaengig vom LLM: ein Regex-Muster
+# pro Zeile (Python re, IGNORECASE), leere Zeilen und "#"-Kommentare werden
+# uebersprungen. Findet ein Muster im Transkript, eskaliert categorize.py
+# Kategorie + Dringlichkeit hart auf "sicherheitsnetz_kategorie" aus
+# kategorien.json ("eingeschlossen") - unabhaengig davon, was das Modell
+# selbst einordnet. Nur nach oben, nie nach unten.
+eingeschlossen
+eingeklemmt
+(sitzt|steckt|stecken)\s+fest
+komm(e|en)\s+nicht\s+(mehr\s+)?raus
+kommt?\s+nicht\s+(mehr\s+)?(raus|heraus)
+t[üu]r\s+(geht|l[äa]sst\s+sich)\s+nicht\s+(auf|[öo]ffnen)
+notruftaste
+kabine\s+(h[äa]ngt|steht)\s+fest
+seit\s+\w+\s+(stunden?|minuten?)\s+im\s+aufzug
+person\s+im\s+aufzug

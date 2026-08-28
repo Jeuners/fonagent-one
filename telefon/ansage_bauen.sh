@@ -1,5 +1,6 @@
 #!/bin/bash
-# Erzeugt die Telefonansage aus telefon/ansage.txt.
+# Erzeugt die Telefonansage aus profile/$PROFIL/ansage.txt (Branchen-Profil,
+# siehe README).
 # Ergebnis: telefon/ansage.wav in Telefonqualitaet (8 kHz mono, PCM16).
 #
 # Drei Sprachsynthesen:
@@ -10,6 +11,7 @@
 #             wiederverwendet, es geht dabei keine Patientendaten raus)
 #
 # Steuerung ueber Umgebungsvariablen bzw. .env:
+#   PROFIL=<Ordnername unter profile/, Default "praxis">
 #   ANSAGE_TTS=piper|say|mistral
 #   ANSAGE_STIMME=<Piper-Modellname, say-Stimme, oder Voxtral-Stimmen-Slug>
 #   ANSAGE_EMOTION=<Sprecher-ID, nur bei thorsten_emotional: 0=amused,
@@ -32,6 +34,10 @@ if [ -f .env ]; then
   done < .env
 fi
 
+PROFIL="${PROFIL:-praxis}"
+ANSAGE_TXT="profile/$PROFIL/ansage.txt"
+[ -f "$ANSAGE_TXT" ] || { echo "Ansage-Text fehlt: $ANSAGE_TXT (PROFIL=$PROFIL)" >&2; exit 1; }
+
 STIMMEN_ORDNER="${PIPER_STIMMEN:-$HOME/piper-voices}"
 STIMME="${ANSAGE_STIMME:-de_DE-thorsten_emotional-medium}"
 EMOTION="${ANSAGE_EMOTION:-0}"
@@ -53,7 +59,7 @@ case "$TTS" in
   piper)
     MODELL="$STIMMEN_ORDNER/$STIMME.onnx"
     [ -f "$MODELL" ] || { echo "Piper-Stimme fehlt: $MODELL" >&2; exit 1; }
-    tr '\n' ' ' < telefon/ansage.txt \
+    tr '\n' ' ' < "$ANSAGE_TXT" \
       | python3 -m piper -m "$MODELL" -s "$EMOTION" --length-scale "$TEMPO" \
                 -f "$TMP/sprache_roh.wav"
     ffmpeg -v error -y -i "$TMP/sprache_roh.wav" -ar 8000 -ac 1 "$TMP/sprache.wav"
@@ -61,7 +67,7 @@ case "$TTS" in
     ;;
   say)
     SAY_STIMME="${ANSAGE_STIMME:-Anna}"
-    say -v "$SAY_STIMME" -r 180 -f telefon/ansage.txt -o "$TMP/sprache.aiff"
+    say -v "$SAY_STIMME" -r 180 -f "$ANSAGE_TXT" -o "$TMP/sprache.aiff"
     ffmpeg -v error -y -i "$TMP/sprache.aiff" -ar 8000 -ac 1 "$TMP/sprache.wav"
     BESCHREIBUNG="say/$SAY_STIMME"
     ;;
@@ -69,7 +75,7 @@ case "$TTS" in
     MISTRAL_STIMME="${ANSAGE_STIMME:-en_paul_neutral}"
     MISTRAL_MODELL="${MISTRAL_TTS_MODEL:-voxtral-mini-tts-latest}"
     [ -n "${MISTRAL_KEY:-}" ] || { echo "MISTRAL_KEY fehlt (ANSAGE_TTS=mistral)" >&2; exit 1; }
-    TEXT="$(tr '\n' ' ' < telefon/ansage.txt)"
+    TEXT="$(tr '\n' ' ' < "$ANSAGE_TXT")"
     PAYLOAD="$(TTS_MODEL="$MISTRAL_MODELL" TTS_VOICE="$MISTRAL_STIMME" python3 -c '
 import json, os, sys
 print(json.dumps({

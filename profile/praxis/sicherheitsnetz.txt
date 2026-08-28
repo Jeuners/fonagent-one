@@ -1,0 +1,23 @@
+# Deterministisches Sicherheitsnetz, unabhaengig vom LLM: ein Regex-Muster
+# pro Zeile (Python re, IGNORECASE), leere Zeilen und "#"-Kommentare werden
+# uebersprungen. Findet ein Muster im Transkript, eskaliert categorize.py
+# Kategorie + Dringlichkeit hart auf "sicherheitsnetz_kategorie" aus
+# kategorien.json ("notfall") - unabhaengig davon, was das Modell selbst
+# einordnet. Nur nach oben, nie nach unten: ein Fehlalarm kostet einen Blick,
+# ein uebersehener Notfall kann einen Patienten kosten.
+#
+# Grund fuer dieses Netz: getestet mit qwen3:8b, 3/3 identische Laeufe
+# stuften "starke Brustschmerzen ... kriege kaum Luft" nur als "hoch" statt
+# "notfall" ein - obwohl das Modell selbst "Brustschmerzen" und "Atemnot"
+# als Stichworte erkannte. Bei Notfall-Erkennung darf man sich nicht allein
+# auf ein LLM verlassen.
+atemnot
+(kriege|bekomme|krieg)\w*\s+(kaum|keine|schwer)\s+luft
+kann\s+(kaum|nicht)\s+(mehr\s+)?atmen
+brust\w*schmerz
+schmerzen?\s+in\s+der\s+brust
+bewusstlos
+ohnm[aä]chtig
+nicht\s+ansprechbar
+blutet\s+(stark|heftig|sehr)
+starke?\s+blutung

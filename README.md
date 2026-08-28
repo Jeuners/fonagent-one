@@ -46,14 +46,54 @@ sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 | `pipe/loeschen.py` | Löscht erledigte Anrufe nach Ablauf der Aufbewahrungsfrist |
 | `pipe/bewertung.py` | 👍/👎-Bewertung pro Anruf (Leitstand) |
 | `pipe/export.py` | Exportiert bewertete Anrufe als JSONL-Trainingsdaten |
-| `prompts/categorize_de.txt` | Kategorisierungs-Prompt (deutsch, mehrsprachig-tauglich) |
-| `telefon/` | Ansage, FreeSWITCH-Vorlagen, Start- und Einrichtungsskripte |
+| `pipe/kategorien.py` | Lädt Kategorien-Schema des aktiven Branchen-Profils (siehe unten) |
+| `profile/<name>/` | Branchen-Profil: Prompt, Kategorien, Sicherheitsnetz, Ansage |
+| `telefon/` | FreeSWITCH-Vorlagen, Start- und Einrichtungsskripte |
 
-## Kategorien
+## Kategorien & Branchen-Profil
 
-`termin · rezept · ueberweisung · befund · verwaltung · beschwerden · notfall ·
-rueckruf · sonstiges`
-Dringlichkeit: `niedrig · normal · hoch · notfall`
+Alles, was fachlich vom Einsatzzweck abhängt, steckt in einem **Branchen-Profil**
+unter `profile/<name>/` — vier Dateien, die zueinander passen müssen:
+
+| Datei | Inhalt |
+|---|---|
+| `prompt.txt` | System-Prompt für `categorize.py`, inkl. Kategorie-Beschreibungen |
+| `kategorien.json` | `kategorien` (Enum fürs JSON-Schema), `kategorie_labels` (Anzeige in Leitstand/Deck/Dashboard), `sicherheitsnetz_kategorie` (Eskalationsziel) |
+| `sicherheitsnetz.txt` | Ein Regex-Muster pro Zeile — deterministische Eskalation, unabhängig vom LLM |
+| `ansage.txt` | Text für `telefon/ansage_bauen.sh` |
+
+Welches Profil aktiv ist, bestimmt `PROFIL` in der `.env` (Default `praxis`) —
+ein Wechsel braucht einen Neustart von `pipe.watch`/`pipe.server`, ist aber sonst
+nichts weiter als diese eine Variable. Mitgeliefert:
+
+- **`profile/praxis/`** (Default) — Hausarztpraxis:
+  `termin · rezept · ueberweisung · befund · verwaltung · beschwerden · notfall ·
+  rueckruf · sonstiges`
+- **`profile/aufzug-notdienst/`** (Beispiel/Vorlage) — 24-Stunden-Aufzug-Notdienst:
+  `eingeschlossen · stoerung · wartung · rueckruf · sonstiges`
+
+> **Wichtig bei `aufzug-notdienst`:** nur eine Vorlage, um den Mechanismus zu
+> zeigen — nicht fachlich/rechtlich geprüft für echten Betrieb. Und generell
+> gilt für jedes Profil mit akuter Lebensgefahr am Telefon (Person im Aufzug
+> eingeschlossen, medizinischer Notfall, …): Diese Pipe nimmt nur auf und
+> kategorisiert **nachträglich** — es gibt keine Live-Weiterleitung während
+> des Anrufs. Das Sicherheitsnetz stuft eine Aufnahme nach der Verarbeitung
+> als Notfall ein, greift aber nicht ein, während der Anrufer noch in der
+> Leitung ist. Für Szenarien, in denen eine sofortige Reaktion während des
+> Anrufs überlebenswichtig ist, reicht eine reine Anrufbeantworter-Architektur
+> allein nicht — das ist nicht Teil dieses Projekts.
+
+Ein drittes Profil anlegen: `profile/praxis/` kopieren, alle vier Dateien
+inhaltlich anpassen, `PROFIL=<name>` setzen. Die Dringlichkeitsstufen
+(`niedrig · normal · hoch · notfall`) sind **nicht** Teil des Profils — die
+Eskalationsskala ist einsatzzweck-unabhängig und in Leitstand/Dashboard/Deck
+fest verdrahtet (Farben, Sortierung, Notfall-Alarm).
+
+> **Hinweis:** `prompt.txt` beschreibt die Kategorien in Prosa fürs Modell,
+> `kategorien.json` erzwingt sie als Enum im JSON-Schema — bewusst zwei
+> Dateien, aber sie müssen inhaltlich zusammenpassen. Ändert man die
+> Kategorien-Liste, muss der Prompt-Text mitgezogen werden, sonst kann das
+> Modell eine im Prompt beschriebene Kategorie wählen, die das Schema ablehnt.
 
 ## Einrichtung
 
@@ -140,7 +180,7 @@ eingehende Anrufe an, spielt die Ansage und nimmt auf. Die Aufnahme landet unter
 sie durch die Pipe und räumt sie nach `telefon/verarbeitet/` weg.
 
 ```bash
-./telefon/ansage_bauen.sh              # Ansage aus telefon/ansage.txt erzeugen
+./telefon/ansage_bauen.sh              # Ansage aus profile/$PROFIL/ansage.txt erzeugen
 ./telefon/freeswitch/einrichten.sh     # Trunk + Dialplan in FreeSWITCH eintragen
 ./telefon/starten.sh                   # startet FreeSWITCH, Verarbeitung, Leitstand
 ```
@@ -196,7 +236,8 @@ Der SIP-Zugang steht in der `.env` (`SIP_USER`, `SIP_DOMAIN`, `SIP_PASS`). Das
 Einrichtungsskript trägt das Passwort in die FreeSWITCH-Konfiguration ein und
 setzt deren Rechte auf 600 — im Git liegen nur Vorlagen mit Platzhaltern.
 
-Text ändern: `telefon/ansage.txt` bearbeiten, `ansage_bauen.sh` erneut
+Text ändern: `profile/$PROFIL/ansage.txt` bearbeiten (siehe
+[Branchen-Profil](#kategorien--branchen-profil)), `ansage_bauen.sh` erneut
 ausführen. Für den Praxisbetrieb muss die Ansage den Notruf 112 nennen und auf
 die Aufzeichnung hinweisen, bevor der Signalton kommt — beides ist bei einer
 Arztpraxis Pflicht, siehe „Offener Punkt" unter Datenschutz weiter unten.
@@ -298,10 +339,10 @@ Gesundheitsdaten — Pflichten für den Produktivbetrieb (Stufe 2):
 - Löschfristen — siehe oben (`LOESCHFRIST_TAGE`).
 - Verarbeitung lokal (Whisper + Qwen) — kein Cloud-Dienst im Datenpfad.
 
-> **Offener Punkt:** Die aktuelle `telefon/ansage.txt` erfüllt die ersten
-> beiden Punkte noch nicht (kein Notfall-Hinweis, keine Aufnahme-Einwilligung)
-> — Text anpassen und `ansage_bauen.sh` neu laufen lassen, bevor die Anlage im
-> echten Praxisbetrieb ans Netz geht.
+> **Offener Punkt:** Die aktuelle `profile/praxis/ansage.txt` erfüllt die
+> ersten beiden Punkte noch nicht (kein Notfall-Hinweis, keine
+> Aufnahme-Einwilligung) — Text anpassen und `ansage_bauen.sh` neu laufen
+> lassen, bevor die Anlage im echten Praxisbetrieb ans Netz geht.
 
 > **Verschlüsselung at rest — Pflicht des Betreibers:** Die Pipe legt
 > Aufnahmen, Transkripte und Metadaten (`ablage/`, `telefon/`, `training/`)

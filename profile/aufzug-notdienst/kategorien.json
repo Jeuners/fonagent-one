@@ -1,0 +1,11 @@
+{
+  "kategorien": ["eingeschlossen", "stoerung", "wartung", "rueckruf", "sonstiges"],
+  "kategorie_labels": {
+    "eingeschlossen": "Person eingeschlossen",
+    "stoerung": "Störung",
+    "wartung": "Wartung",
+    "rueckruf": "Rückruf",
+    "sonstiges": "Sonstiges"
+  },
+  "sicherheitsnetz_kategorie": "eingeschlossen"
+}

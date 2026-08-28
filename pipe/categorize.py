@@ -15,40 +15,33 @@ import urllib.error
 import urllib.request
 from functools import lru_cache
 
-from . import config, modellwahl
+from . import config, kategorien, modellwahl
 
-KATEGORIEN = [
-    "termin", "rezept", "ueberweisung", "befund",
-    "verwaltung", "beschwerden", "notfall", "rueckruf", "sonstiges",
-]
-DRINGLICHKEITEN = ["niedrig", "normal", "hoch", "notfall"]
+KATEGORIEN = kategorien.KATEGORIEN
+DRINGLICHKEITEN = kategorien.DRINGLICHKEITEN
 
-# Deterministisches Sicherheitsnetz, unabhaengig vom LLM: dieselben Symptome,
-# die der Prompt selbst als Notfall-Beispiele nennt (Atemnot, Brustschmerz,
-# Bewusstlosigkeit, starke Blutung). Grund: getestet mit qwen3:8b, 3/3
-# identische Laeufe stuften "starke Brustschmerzen ... kriege kaum Luft" nur
-# als "hoch" statt "notfall" ein - obwohl das Modell selbst "Brustschmerzen"
-# und "Atemnot" als stichworte erkannte. Bei Notfall-Erkennung darf man sich
-# nicht allein auf ein LLM verlassen. Eskaliert nur nach oben, nie nach unten
-# - ein Fehlalarm kostet einen Blick, ein uebersehener Notfall kann einen
-# Patienten kosten (siehe auch die "im Zweifel hoeher"-Regel im Prompt).
-_NOTFALL_MUSTER = [re.compile(p, re.IGNORECASE) for p in (
-    r"atemnot",
-    r"(kriege|bekomme|krieg)\w*\s+(kaum|keine|schwer)\s+luft",
-    r"kann\s+(kaum|nicht)\s+(mehr\s+)?atmen",
-    r"brust\w*schmerz",
-    r"schmerzen?\s+in\s+der\s+brust",
-    r"bewusstlos",
-    r"ohnm[aä]chtig",
-    r"nicht\s+ansprechbar",
-    r"blutet\s+(stark|heftig|sehr)",
-    r"starke?\s+blutung",
-)]
+
+@lru_cache(maxsize=1)
+def _sicherheitsnetz_muster() -> list[re.Pattern]:
+    """Lädt die Eskalations-Regex-Muster aus profile/<PROFIL>/sicherheitsnetz.txt.
+
+    Ein Muster pro Zeile, Kommentare ("#") und Leerzeilen werden übersprungen.
+    Deterministisch, unabhängig vom LLM - siehe Rationale in der Profil-Datei
+    selbst. Eskaliert nur nach oben, nie nach unten.
+    """
+    if not config.SICHERHEITSNETZ_DATEI.is_file():
+        return []
+    return [
+        re.compile(zeile, re.IGNORECASE)
+        for zeile in (z.strip() for z in config.SICHERHEITSNETZ_DATEI.read_text(encoding="utf-8").splitlines())
+        if zeile and not zeile.startswith("#")
+    ]
 
 
 def _notfall_sicherheitsnetz(transkript: str, d: dict) -> dict:
-    if d.get("dringlichkeit") != "notfall" and any(m.search(transkript) for m in _NOTFALL_MUSTER):
-        d["kategorie"] = "notfall"
+    ziel = kategorien.SICHERHEITSNETZ_KATEGORIE
+    if d.get("kategorie") != ziel and any(m.search(transkript) for m in _sicherheitsnetz_muster()):
+        d["kategorie"] = ziel
         d["dringlichkeit"] = "notfall"
     return d
 
@@ -244,11 +237,11 @@ def _bereinige(d: dict) -> dict:
         d["kategorie"] = "sonstiges"
     if d.get("dringlichkeit") not in DRINGLICHKEITEN:
         d["dringlichkeit"] = "normal"
-    # Das Modell vergibt gelegentlich die Kategorie "notfall" und stuft die
-    # Dringlichkeit trotzdem nur auf "hoch" ein. Das ist widersprüchlich und
-    # führt zu einer harmloseren Farbe auf dem Board, als der Anruf verdient.
-    # In der Praxis eskaliert man im Zweifel, statt abzuschwächen.
-    if d["kategorie"] == "notfall":
+    # Das Modell vergibt gelegentlich die Sicherheitsnetz-Kategorie (z. B.
+    # "notfall") und stuft die Dringlichkeit trotzdem nur auf "hoch" ein. Das
+    # ist widersprüchlich und führt zu einer harmloseren Farbe auf dem Board,
+    # als der Anruf verdient. Im Zweifel eskaliert man, statt abzuschwächen.
+    if d["kategorie"] == kategorien.SICHERHEITSNETZ_KATEGORIE:
         d["dringlichkeit"] = "notfall"
     d.setdefault("anrufer_name", None)
     d.setdefault("rueckrufnummer", None)

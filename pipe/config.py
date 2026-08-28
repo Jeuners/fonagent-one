@@ -83,9 +83,21 @@ OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 # hinterlegten (siehe pipe/modellwahl.py) - leer lassen wenn nicht gebraucht.
 OPENROUTER_MODELL = os.environ.get("OPENROUTER_MODELL", "")
 
-PROMPT_DATEI = WURZEL / "prompts" / os.environ.get(
-    "PROMPT_DATEI", "categorize_de.txt"
-)
+# --- Branchen-Profil -----------------------------------------------------
+# Buendelt alles, was fachlich vom Einsatzzweck abhaengt (Kategorien, Prompt,
+# Notfall-Sicherheitsnetz, Ansage) an einer Stelle - siehe profile/<name>/.
+# So bleiben diese vier Teile beim Wechsel des Einsatzzwecks (z.B. Praxis vs.
+# 24h-Aufzug-Notdienst) automatisch zueinander konsistent, statt dass man eine
+# Datei beim Umstellen vergisst. Neues Profil anlegen: profile/<name>/ Ordner
+# mit prompt.txt, kategorien.json, sicherheitsnetz.txt, ansage.txt anlegen
+# (profile/praxis/ als Vorlage nehmen) und hier PROFIL=<name> setzen.
+PROFIL = os.environ.get("PROFIL", "praxis").strip() or "praxis"
+PROFIL_ORDNER = WURZEL / "profile" / PROFIL
+
+PROMPT_DATEI = PROFIL_ORDNER / "prompt.txt"
+KATEGORIEN_DATEI = PROFIL_ORDNER / "kategorien.json"
+SICHERHEITSNETZ_DATEI = PROFIL_ORDNER / "sicherheitsnetz.txt"
+ANSAGE_DATEI = PROFIL_ORDNER / "ansage.txt"
 
 # --- Ablage ------------------------------------------------------------------
 ABLAGE_LOKAL = Path(os.environ.get("ABLAGE_LOKAL", str(WURZEL / "ablage")))

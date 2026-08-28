@@ -16,12 +16,13 @@ import re
 import sys
 import time
 from datetime import datetime
+from functools import lru_cache
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bewertung, config, dashboard, dienste, export, modellwahl, protokoll, stapel, testzugang
+from . import bewertung, config, dashboard, dienste, export, kategorien, modellwahl, protokoll, stapel, testzugang
 
 
 def anrufe() -> list[dict]:
@@ -237,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         pfad = unquote(urlparse(self.path).path)
         if pfad == "/":
-            self._sende(SEITE.encode("utf-8"), "text/html; charset=utf-8")
+            self._sende(_seite().encode("utf-8"), "text/html; charset=utf-8")
         elif pfad == "/api/status":
             daten = dienste.status()
             # Testzugang (per "agent-one test"-Link) -> Sicher-Modus im
@@ -601,8 +602,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 </div>
 <script>
 const FARBE={notfall:'#d93a34',hoch:'#e08a2a',normal:'#c8a227',niedrig:'#1f9d5c'};
-const KAT={termin:'Termin',rezept:'Rezept',ueberweisung:'Überweisung',befund:'Befund',
-verwaltung:'Verwaltung',beschwerden:'Beschwerden',notfall:'Notfall',rueckruf:'Rückruf',sonstiges:'Sonstiges'};
+const KAT=__KAT_JSON__;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let STAPEL=[], ANRUFE=[], offeneTranskripte=new Set(), pausiert=false;
 
@@ -988,6 +988,17 @@ document.getElementById('exportBtn').onclick=async()=>{
 
 takt();setInterval(takt,3000);
 </script></body></html>"""
+
+
+@lru_cache(maxsize=1)
+def _seite() -> str:
+    """SEITE mit den Kategorie-Labels des aktiven Profils (pipe.kategorien).
+
+    Fest pro Prozesslauf (Profil wechselt nur per .env + Neustart, wie die
+    Kategorien selbst) - deshalb einmalig gecacht statt bei jeder Anfrage neu
+    zusammengesetzt.
+    """
+    return SEITE.replace("__KAT_JSON__", json.dumps(kategorien.KATEGORIE_LABEL, ensure_ascii=False))
 
 
 def main(argv: list[str] | None = None) -> int:

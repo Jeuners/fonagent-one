@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from functools import lru_cache
 
-from . import config
+from . import config, kategorien
 
 _API = "/index.php/apps/deck/api/v1.1"
 
@@ -31,11 +31,7 @@ DRINGLICHKEIT_FARBE = {
 }
 # Lesbare Namen der Kategorien für den Kartentitel - der Stapel sagt jetzt,
 # wie weit die Bearbeitung ist, nicht mehr worum es geht.
-KATEGORIE_LABEL = {
-    "termin": "Termin", "rezept": "Rezept", "ueberweisung": "Überweisung",
-    "befund": "Befund", "verwaltung": "Verwaltung", "beschwerden": "Beschwerden", "notfall": "Notfall",
-    "rueckruf": "Rückruf", "sonstiges": "Sonstiges",
-}
+KATEGORIE_LABEL = kategorien.KATEGORIE_LABEL
 
 
 @lru_cache(maxsize=1)
