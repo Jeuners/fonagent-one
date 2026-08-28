@@ -969,13 +969,18 @@ sicherBtn.onclick=()=>{
 // nachweislich ihren Credential-Cache fuer diesen Ursprung, ein Reload
 // danach zeigt wieder den Anmelde-Dialog. Funktioniert in den gaengigen
 // Browsern, ist aber kein Ersatz fuer "Fenster schliessen" bei geteilten Rechnern.
-document.getElementById('logoutBtn').onclick=()=>{
+// Zwei Ausloeser: der Button (falls sichtbar) UND ?logoff in der URL - Zweiteres
+// funktioniert immer, unabhaengig davon, ob der Button im Header gerade zu
+// sehen ist (z.B. bei zugestopftem Header auf schmalen Bildschirmen).
+function abmelden(){
   document.cookie='zugang=; Max-Age=0; Path=/';
   const xhr=new XMLHttpRequest();
   xhr.open('GET','/',true,'logout','logout');
-  xhr.onloadend=()=>location.reload();
+  xhr.onloadend=()=>{location.href=location.pathname};
   xhr.send();
-};
+}
+document.getElementById('logoutBtn').onclick=abmelden;
+if(new URLSearchParams(location.search).has('logoff'))abmelden();
 
 // Kategorisierungs-Modell (Dropdown oben rechts) - Wechsel greift sofort
 // beim naechsten Anruf, kein Neustart des Watchers noetig (siehe
