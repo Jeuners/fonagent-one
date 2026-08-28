@@ -3,16 +3,18 @@
 # siehe README).
 # Ergebnis: telefon/ansage.wav in Telefonqualitaet (8 kHz mono, PCM16).
 #
-# Drei Sprachsynthesen:
+# Vier Quellen:
 #   piper    (Standard, natuerlicher, lokal) - Modelle unter ~/piper-voices
 #   say      (macOS-Bordmittel, lokal, Rueckfall wenn Piper fehlt)
 #   mistral  (Voxtral-API, Cloud - nur fuer diesen einmaligen Erzeugungslauf;
 #             die fertige ansage.wav wird danach lokal fuer jeden Anruf
 #             wiederverwendet, es geht dabei keine Patientendaten raus)
+#   datei    (echte Aufnahme statt Synthese - profile/$PROFIL/ansage.<ext>,
+#             ansage.txt wird dabei nicht gelesen)
 #
 # Steuerung ueber Umgebungsvariablen bzw. .env:
 #   PROFIL=<Ordnername unter profile/, Default "praxis">
-#   ANSAGE_TTS=piper|say|mistral
+#   ANSAGE_TTS=piper|say|mistral|datei
 #   ANSAGE_STIMME=<Piper-Modellname, say-Stimme, oder Voxtral-Stimmen-Slug>
 #   ANSAGE_EMOTION=<Sprecher-ID, nur bei thorsten_emotional: 0=amused,
 #                   1=angry, 2=disgusted, 3=drunk, 4=neutral, 5=sleepy,
@@ -56,6 +58,24 @@ fi
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 case "$TTS" in
+  datei)
+    # Echte Aufnahme statt Sprachsynthese - profile/$PROFIL/ansage.<ext>
+    # (erste gefundene Endung gewinnt). ansage.txt wird in diesem Modus nicht
+    # gelesen; sie bleibt trotzdem als Beleg/Backup stehen, was gesagt wird.
+    QUELLE=""
+    for ext in ogg mp3 wav m4a aiff; do
+      if [ -f "profile/$PROFIL/ansage.$ext" ]; then
+        QUELLE="profile/$PROFIL/ansage.$ext"
+        break
+      fi
+    done
+    [ -n "$QUELLE" ] || {
+      echo "Keine Ansage-Audiodatei gefunden (profile/$PROFIL/ansage.{ogg,mp3,wav,m4a,aiff})" >&2
+      exit 1
+    }
+    ffmpeg -v error -y -i "$QUELLE" -ar 8000 -ac 1 "$TMP/sprache.wav"
+    BESCHREIBUNG="datei/$QUELLE"
+    ;;
   piper)
     MODELL="$STIMMEN_ORDNER/$STIMME.onnx"
     [ -f "$MODELL" ] || { echo "Piper-Stimme fehlt: $MODELL" >&2; exit 1; }
