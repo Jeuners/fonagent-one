@@ -1,4 +1,5 @@
 {
+  "profil_name": "Hausarztpraxis",
   "kategorien": [
     "termin", "rezept", "ueberweisung", "befund",
     "verwaltung", "beschwerden", "notfall", "rueckruf", "sonstiges"

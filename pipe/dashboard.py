@@ -61,7 +61,7 @@ def baue(ausgabe: Path) -> Path:
     karten = "\n".join(_karte(d) for d in anrufe)
     doc = f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Anruf-Übersicht</title>
+<title>Anruf-Übersicht · {html.escape(kategorien.PROFIL_NAME)}</title>
 <style>
 :root{{--bg:#f6f7f9;--fg:#1a2230;--karte:#fff;--rand:#e4e8ee;--muted:#6b7688}}
 @media(prefers-color-scheme:dark){{:root{{--bg:#12151b;--fg:#e7ecf3;--karte:#1b2029;--rand:#2a313d;--muted:#93a0b4}}}}
@@ -82,7 +82,7 @@ padding:1px 7px;font-size:12px;color:var(--muted);margin:2px 4px 2px 0}}
 details{{margin-top:6px}}summary{{cursor:pointer;color:var(--muted);font-size:13px}}
 .tr{{color:var(--muted);font-size:13px;margin:6px 0 0}}
 </style></head><body><div class="wrap">
-<h1>Anruf-Übersicht</h1>
+<h1>Anruf-Übersicht · {html.escape(kategorien.PROFIL_NAME)}</h1>
 <p class="sub">{len(anrufe)} Anrufe · {zusammenfassung or '—'} · lokal erzeugt aus der Ablage</p>
 {karten}
 </div></body></html>"""

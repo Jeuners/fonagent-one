@@ -27,6 +27,9 @@ def _daten() -> dict:
 
 KATEGORIEN = _daten()["kategorien"]
 KATEGORIE_LABEL = _daten().get("kategorie_labels", {})
+# Anzeigename des aktiven Profils (Leitstand-Header, Dashboard) - Fallback auf
+# den rohen Ordnernamen, falls ein Profil das Feld nicht setzt.
+PROFIL_NAME = _daten().get("profil_name", config.PROFIL)
 # Kategorie, auf die das deterministische Sicherheitsnetz eskaliert (siehe
 # categorize._notfall_sicherheitsnetz) - bei "praxis" ist das "notfall", bei
 # anderen Profilen ggf. ein anderer Name (z. B. "eingeschlossen").

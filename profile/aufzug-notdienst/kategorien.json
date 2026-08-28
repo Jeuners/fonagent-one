@@ -1,4 +1,5 @@
 {
+  "profil_name": "Aufzug-Notdienst",
   "kategorien": ["eingeschlossen", "stoerung", "wartung", "rueckruf", "sonstiges"],
   "kategorie_labels": {
     "eingeschlossen": "Person eingeschlossen",
