@@ -2,11 +2,14 @@
 
 **v1.0.0** — siehe [CHANGELOG.md](CHANGELOG.md)
 
-Praxis-Telefon-Agent — nimmt Anrufe (Sprachnachrichten) einer Hausarztpraxis entgegen, **transkribiert**
+Anruf-Intake-Agent — nimmt Anrufe (Sprachnachrichten) entgegen, **transkribiert**
 sie lokal, **kategorisiert** das Anliegen und **legt** das Ergebnis strukturiert
-ab (lokal und optional in Nextcloud).
+ab (lokal und optional in Nextcloud). Für welchen Einsatzbereich (Hausarztpraxis,
+24h-Notdienst, …) ist reine Konfiguration — siehe
+[Branchen-Profil](#kategorien--branchen-profil). Zwei Beispiele liegen bei:
+`praxis` (Hausarztpraxis) und `aufzug-notdienst`.
 
-**Vollständig on-prem** — keine Patientendaten verlassen den Rechner.
+**Vollständig on-prem** — keine Anrufdaten verlassen den Rechner.
 
 
 > **Hinweis:** Alle Namen, Rufnummern und Anliegen in diesem Repository sind
