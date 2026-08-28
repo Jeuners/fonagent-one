@@ -18,6 +18,20 @@ if [ -f .env ]; then
   done < .env
 fi
 
+# Rohe Prozess-Logs (stdout/stderr von watcher/leitstand/monitor + die
+# eigene Ausgabe hier, wenn per launchd-Watchdog alle 5 Min aufgerufen)
+# wachsen sonst unbegrenzt - anders als verlauf.log (protokoll.kuerze(), nach
+# jedem Anruf) und audit.log (bewusst permanent, siehe pipe/audit.py). Ab
+# 2 MB auf die letzten 2000 Zeilen kuerzen, in-place (gleiches Inode) - sicher
+# fuer >>-Redirects (O_APPEND springt bei jedem Schreiben ans Dateiende,
+# unabhaengig vom vorherigen Offset).
+LOG_GRENZE_BYTES=2000000
+for log in telefon/autostart.log telefon/watcher.log telefon/leitstand.log telefon/monitor.log; do
+  if [ -f "$log" ] && [ "$(wc -c < "$log" 2>/dev/null || echo 0)" -gt "$LOG_GRENZE_BYTES" ]; then
+    tail -n 2000 "$log" > "$log.tmp" 2>/dev/null && cat "$log.tmp" > "$log" && rm -f "$log.tmp"
+  fi
+done
+
 fehler=0
 melde() { printf '  %-38s %s\n' "$1" "$2"; }
 
@@ -99,20 +113,20 @@ if [ "${status:-}" = "UP" ]; then
   else
     # nice 10: Transkription und Kategorisierung dürfen warten, ein laufendes
     # Telefonat nicht. Auf 16 GB RAM konkurrieren beide sonst um die Maschine.
-    nohup nice -n 10 python3 -u -m pipe.watch > telefon/watcher.log 2>&1 &
+    nohup nice -n 10 python3 -u -m pipe.watch >> telefon/watcher.log 2>&1 &
     echo "Verarbeitung gestartet (Log: telefon/watcher.log)"
   fi
   if pgrep -f "[p]ipe.server" >/dev/null; then
     echo "Leitstand laeuft bereits."
   else
-    nohup python3 -u -m pipe.server > telefon/leitstand.log 2>&1 &
+    nohup python3 -u -m pipe.server >> telefon/leitstand.log 2>&1 &
     sleep 2
-    head -1 telefon/leitstand.log
+    tail -1 telefon/leitstand.log
   fi
   if pgrep -f "[p]ipe.monitor" >/dev/null; then
     echo "Stoerungswache laeuft bereits."
   else
-    nohup python3 -u -m pipe.monitor > telefon/monitor.log 2>&1 &
+    nohup python3 -u -m pipe.monitor >> telefon/monitor.log 2>&1 &
     echo "Stoerungswache gestartet (Log: telefon/monitor.log)"
   fi
   sleep 2

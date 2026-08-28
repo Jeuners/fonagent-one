@@ -152,10 +152,18 @@ def main(argv: list[str] | None = None) -> int:
     try:
         while True:
             durchlauf(eingang)
-            if config.LOESCHFRIST_TAGE and time.monotonic() - letzter_loeschlauf >= LOESCH_TAKT_S:
-                anzahl = loeschen.laeuft()
-                if anzahl:
-                    print(f"🗑  {anzahl} Anruf(e) nach Aufbewahrungsfrist geloescht.")
+            if time.monotonic() - letzter_loeschlauf >= LOESCH_TAKT_S:
+                if config.LOESCHFRIST_TAGE:
+                    anzahl = loeschen.laeuft()
+                    if anzahl:
+                        print(f"🗑  {anzahl} Anruf(e) nach Aufbewahrungsfrist geloescht.")
+                # Verlauf-Archivkopien (pipe.protokoll, "Tag archivieren")
+                # sammeln sich sonst unbegrenzt an - unabhaengig von
+                # LOESCHFRIST_TAGE, das nur Anrufe betrifft, nicht Log-Kopien.
+                archiv_geloescht = protokoll.raeume_archiv_auf()
+                if archiv_geloescht:
+                    print(f"🗑  {archiv_geloescht} alte Verlauf-Archivkopie(n) geloescht "
+                          f"(> {protokoll.ARCHIV_FRIST_TAGE} Tage).")
                 letzter_loeschlauf = time.monotonic()
             time.sleep(TAKT_S)
     except KeyboardInterrupt:

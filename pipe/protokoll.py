@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -79,3 +80,26 @@ def archiviere_und_leere() -> Path | None:
         return ziel
     except Exception:
         return None
+
+
+ARCHIV_FRIST_TAGE = 90
+
+
+def raeume_archiv_auf(tage: int = ARCHIV_FRIST_TAGE) -> int:
+    """Löscht Verlauf-Archivkopien (nicht audit.log!) älter als `tage` Tage.
+
+    Ein neues verlauf_*.log entsteht bei jedem "Tag archivieren" - ohne
+    Aufräumen sammeln sich diese sonst unbegrenzt an. Wirft nie, gibt die
+    Anzahl gelöschter Dateien zurück."""
+    if not ARCHIV_ORDNER.is_dir():
+        return 0
+    grenze = time.time() - tage * 86400
+    geloescht = 0
+    for datei in ARCHIV_ORDNER.glob("verlauf_*.log"):
+        try:
+            if datei.stat().st_mtime < grenze:
+                datei.unlink()
+                geloescht += 1
+        except Exception:
+            continue
+    return geloescht
