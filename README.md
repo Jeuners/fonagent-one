@@ -8,14 +8,13 @@ ab (lokal und optional in Nextcloud).
 
 **Vollständig on-prem** — keine Patientendaten verlassen den Rechner.
 
-![Der Leitstand im Dunkelmodus: Dienste-Ampeln und Verlauf oben, darunter das Board mit Eingang, In Bearbeitung, Rückfragen und Erledigt](docs/agentone-screen-1.jpg)
 
 > **Hinweis:** Alle Namen, Rufnummern und Anliegen in diesem Repository sind
 > erfunden — auch im Screenshot und in der Beispielkonfiguration. „Praxis
 > Musterhausen" ist ein Platzhalter. Echte Zugangsdaten und Anrufdaten liegen
 > außerhalb des Repositorys (`.env`, `ablage/`, `telefon/`).
 
-Wer das Projekt auf einem weiteren Rechner einrichtet: [docs/MITGABE.md](docs/MITGABE.md)
+Wer das Projekt auf einem Linux einrichten möchte, eine Kleine Hilfe: [docs/MITGABE.md](docs/MITGABE.md)
 sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
 
 ## Stufen
