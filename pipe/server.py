@@ -469,6 +469,9 @@ padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
 .export-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
 .export-btn:hover{border-color:var(--muted)}
+.logout-btn{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
+padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px;display:none}
+.logout-btn:hover{border-color:var(--muted)}
 .melde-btn{font-size:13px;background:var(--bg);border:1px solid var(--rand);border-radius:7px;
 padding:2px 6px;cursor:pointer;line-height:1.4;opacity:.5;flex:none}
 .melde-btn:hover{opacity:1;border-color:var(--muted)}
@@ -570,6 +573,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <button class="export-btn" id="exportBtn" title="Bewertete Anrufe (👍/👎) als JSONL-Trainingsdaten exportieren, unabhaengig vom Archivieren">📤 Bewertungen exportieren</button>
 <span class="stand" id="stand">…</span>
 <span class="nutzer-anzeige" id="nutzerAnzeige"></span>
+<button class="logout-btn" id="logoutBtn" title="Zugangsdaten dieses Browsers fuer den Leitstand verwerfen">🚪 Abmelden</button>
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
 </header>
 <div class="dienste-kopf">Dienste</div>
@@ -804,6 +808,7 @@ function zeichneStatus(s){
   }
   document.getElementById('stand').textContent='Stand '+s.stand;
   document.getElementById('nutzerAnzeige').textContent=s.nutzer?('👤 '+s.nutzer):'';
+  document.getElementById('logoutBtn').style.display=s.nutzer?'':'none';
   document.getElementById('dienste').innerHTML=s.dienste.map(d=>
     `<div class="dienst"><span class="punkt ${d.zustand}"></span>
      <span><b>${esc(d.name)}</b><span>${esc(d.text)}</span></span></div>`).join('');
@@ -955,6 +960,21 @@ try{sicherSetzen(localStorage.getItem('sicherModus')==='1')}catch(e){}
 sicherBtn.onclick=()=>{
   if(sicherErzwungen){toast('Sicher-Modus ist bei Testzugang immer aktiv');return}
   sicherSetzen(!document.body.classList.contains('sicher'));
+};
+
+// Abmelden: es gibt keine Server-Session, die man loeschen koennte (HTTP
+// Basic Auth) - der Browser cached die Zugangsdaten selbst. Zwei Schritte:
+// 1) Testzugang-Cookie loeschen (falls darueber angemeldet). 2) Einen
+// Request mit falschen Zugangsdaten schicken - Browser ueberschreiben damit
+// nachweislich ihren Credential-Cache fuer diesen Ursprung, ein Reload
+// danach zeigt wieder den Anmelde-Dialog. Funktioniert in den gaengigen
+// Browsern, ist aber kein Ersatz fuer "Fenster schliessen" bei geteilten Rechnern.
+document.getElementById('logoutBtn').onclick=()=>{
+  document.cookie='zugang=; Max-Age=0; Path=/';
+  const xhr=new XMLHttpRequest();
+  xhr.open('GET','/',true,'logout','logout');
+  xhr.onloadend=()=>location.reload();
+  xhr.send();
 };
 
 // Kategorisierungs-Modell (Dropdown oben rechts) - Wechsel greift sofort
