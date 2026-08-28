@@ -248,10 +248,15 @@ class Handler(BaseHTTPRequestHandler):
         if pfad == "/":
             self._sende(_seite().encode("utf-8"), "text/html; charset=utf-8")
         elif pfad == "/api/status":
-            daten = dienste.status()
+            # Kopie, nicht das gecachte dienste.status()-Objekt direkt
+            # mutieren - der ThreadingHTTPServer bedient mehrere Nutzer
+            # gleichzeitig, sonst koennte der Nutzername der einen Anfrage in
+            # der Antwort einer anderen landen.
+            daten = dict(dienste.status())
             # Testzugang (per "agent-one test"-Link) -> Sicher-Modus im
             # Frontend erzwingen, siehe sicherSetzen() im JS.
             daten["testzugang"] = getattr(self, "_via_token", False)
+            daten["nutzer"] = self._nutzer
             self._json(daten)
         elif pfad == "/api/anrufe":
             liste = anrufe()
@@ -429,6 +434,7 @@ h1{font-size:19px;margin:0;line-height:1.25}
 .untertitel{font-size:12px;color:var(--muted);font-weight:400}
 .logo{width:34px;height:34px;border-radius:50%;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .stand{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;margin-left:auto}
+.nutzer-anzeige{color:var(--muted);font-size:13px;margin-left:10px}
 .modell-select{background:var(--karte);border:1px solid var(--rand);color:var(--fg);border-radius:8px;
 padding:6px 10px;font-size:13px;font-family:inherit;cursor:pointer;max-width:280px}
 .verbindung-banner{display:none;align-items:center;gap:9px;background:var(--unklar);color:#1a1500;
@@ -563,6 +569,7 @@ color:var(--gut);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:
 <button class="archiv-btn" id="archivBtn" title="Erledigte Anrufe vom Board raeumen (simuliert, nichts wird geloescht) - bewertete Anrufe werden als Trainingsdaten exportiert, das Verlauf-Log wird gesichert und geleert">🗄️ Tag archivieren</button>
 <button class="export-btn" id="exportBtn" title="Bewertete Anrufe (👍/👎) als JSONL-Trainingsdaten exportieren, unabhaengig vom Archivieren">📤 Bewertungen exportieren</button>
 <span class="stand" id="stand">…</span>
+<span class="nutzer-anzeige" id="nutzerAnzeige"></span>
 <select class="modell-select" id="modellSelect" title="Kategorisierungs-Modell fuer neue Anrufe - Aenderung greift sofort, kein Neustart noetig"></select>
 </header>
 <div class="dienste-kopf">Dienste</div>
@@ -796,6 +803,7 @@ function zeichneStatus(s){
     sicherSetzen(true);
   }
   document.getElementById('stand').textContent='Stand '+s.stand;
+  document.getElementById('nutzerAnzeige').textContent=s.nutzer?('👤 '+s.nutzer):'';
   document.getElementById('dienste').innerHTML=s.dienste.map(d=>
     `<div class="dienst"><span class="punkt ${d.zustand}"></span>
      <span><b>${esc(d.name)}</b><span>${esc(d.text)}</span></span></div>`).join('');
