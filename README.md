@@ -1,6 +1,6 @@
 # Logpy:AgentOne
 
-**v1.0.0** — siehe [CHANGELOG.md](CHANGELOG.md)
+**v1.1.0** — siehe [CHANGELOG.md](CHANGELOG.md)
 
 Anruf-Intake-Agent — nimmt Anrufe (Sprachnachrichten) entgegen, **transkribiert**
 sie lokal, **kategorisiert** das Anliegen und **legt** das Ergebnis strukturiert
