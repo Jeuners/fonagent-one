@@ -17,9 +17,6 @@ ab (lokal und optional in Nextcloud). Für welchen Einsatzbereich (Hausarztpraxi
 > Musterhausen" ist ein Platzhalter. Echte Zugangsdaten und Anrufdaten liegen
 > außerhalb des Repositorys (`.env`, `ablage/`, `telefon/`).
 
-Wer das Projekt auf einem Linux einrichten möchte, eine Kleine Hilfe: [docs/MITGABE.md](docs/MITGABE.md)
-sammelt die Erfahrungswerte, die in dieser Anleitung nicht stehen.
-
 ## Stufen
 
 1. **Die Pipe** (fertig): Audio → Transkript → Kategorie → Ablage.
